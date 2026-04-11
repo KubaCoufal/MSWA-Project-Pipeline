@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.enums import AlertRuleType, AlertStatus
 from app.models import Alert, AlertRule, Pipeline, Run
-from app.schemas import AlertRuleCreate
+from app.schemas import AlertRuleCreate, AlertUpdate
+
+
+VALID_ALERT_TRANSITIONS: dict[AlertStatus, set[AlertStatus]] = {
+    AlertStatus.OPEN: {AlertStatus.ACKNOWLEDGED, AlertStatus.RESOLVED},
+    AlertStatus.ACKNOWLEDGED: {AlertStatus.RESOLVED},
+    AlertStatus.RESOLVED: set(),
+}
 
 
 def _normalize_timestamp(value):
@@ -98,3 +105,20 @@ def list_alerts_query(pipeline_id: int | None = None, alert_status: AlertStatus 
     if alert_status is not None:
         query = query.where(Alert.status == alert_status)
     return query
+
+
+def update_alert(session: Session, alert_id: int, payload: AlertUpdate) -> Alert:
+    alert = session.get(Alert, alert_id)
+    if alert is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert was not found.")
+
+    if payload.status not in VALID_ALERT_TRANSITIONS[alert.status]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid alert status transition: {alert.status.value} -> {payload.status.value}",
+        )
+
+    alert.status = payload.status
+    session.commit()
+    session.refresh(alert)
+    return alert

@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 
 import { api } from '../api/client'
+import { liveMonitorQueryOptions } from '../app/queryOptions'
 import { useAuth } from '../auth/AuthContext'
 import { PageHeader } from '../components/common/PageHeader'
 import { StatusChip } from '../components/common/StatusChip'
@@ -20,6 +21,7 @@ export function RunDetailPage() {
   const runQuery = useQuery({
     queryKey: ['run', runId],
     queryFn: () => api.getRun(runId),
+    ...liveMonitorQueryOptions,
   })
   const pipelinesQuery = useQuery({ queryKey: ['pipelines'], queryFn: api.getPipelines })
 

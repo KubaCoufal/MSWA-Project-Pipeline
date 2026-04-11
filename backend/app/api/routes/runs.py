@@ -6,14 +6,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.security import require_roles
+from app.core.security import get_current_user, require_roles
 from app.db import get_session
 from app.enums import RunStatus, UserRole
 from app.models import Run
 from app.schemas import RunRead, RunUpdate
 from app.services.runs import list_runs_query, runtime_seconds, update_run
 
-router = APIRouter(prefix="/runs", tags=["runs"])
+router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(get_current_user)])
 
 
 def serialize_run(run: Run) -> RunRead:

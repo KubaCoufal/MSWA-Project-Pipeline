@@ -1,6 +1,7 @@
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import MonitorHeartRoundedIcon from '@mui/icons-material/MonitorHeartRounded'
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded'
+import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 import PlaylistPlayRoundedIcon from '@mui/icons-material/PlaylistPlayRounded'
 import RuleRoundedIcon from '@mui/icons-material/RuleRounded'
 import SchemaRoundedIcon from '@mui/icons-material/SchemaRounded'
@@ -20,6 +21,7 @@ import {
   MenuItem,
   Select,
   Stack,
+  Button,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -31,6 +33,7 @@ import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 
 const drawerWidth = 280
+const appBarHeight = 72
 
 const navigationItems = [
   { label: 'Dashboard', to: '/dashboard', icon: <MonitorHeartRoundedIcon />, match: '/dashboard' },
@@ -45,7 +48,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'))
   const location = useLocation()
-  const { currentUser, users, setCurrentUserId } = useAuth()
+  const { authMode, currentUser, users, setCurrentUserId, isLoading, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const currentSection = useMemo(
@@ -63,7 +66,7 @@ export function AppShell({ children }: PropsWithChildren) {
           Big Data Pipeline Control
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1.5 }}>
-          Simulated orchestration, real monitoring, mobile-friendly navigation.
+          Simulated orchestration, real monitoring.
         </Typography>
       </Box>
       <Divider />
@@ -110,7 +113,14 @@ export function AppShell({ children }: PropsWithChildren) {
           'radial-gradient(circle at top left, rgba(255, 107, 53, 0.14), transparent 30%), linear-gradient(180deg, #f8f5ee 0%, #f0ece2 100%)',
       }}
     >
-      <AppBar position="fixed" elevation={0}>
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          width: { lg: `calc(100% - ${drawerWidth}px)` },
+          ml: { lg: `${drawerWidth}px` },
+        }}
+      >
         <Toolbar sx={{ gap: 2 }}>
           {!isDesktop && (
             <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)}>
@@ -133,49 +143,75 @@ export function AppShell({ children }: PropsWithChildren) {
             <Box>
               <Typography variant="h6">Pipeline Monitor</Typography>
               <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                Demo auth ready for Keycloak later
+                {authMode === 'demo' ? 'Demo auth mode' : 'Keycloak auth mode'}
               </Typography>
             </Box>
           </Stack>
           <Box sx={{ flexGrow: 1 }} />
-          <FormControl size="small" sx={{ minWidth: 220, bgcolor: 'rgba(255,255,255,0.18)', borderRadius: 3 }}>
-            <Select
-              value={String(currentUser.id)}
-              onChange={(event) => setCurrentUserId(Number(event.target.value))}
-              sx={{ color: 'common.white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' } }}
-            >
-              {users.map((user) => (
-                <MenuItem key={user.id} value={String(user.id)}>
-                  {user.displayName} | {user.role}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {authMode === 'demo' ? (
+            <FormControl size="small" sx={{ minWidth: 220, bgcolor: 'rgba(255,255,255,0.18)', borderRadius: 3 }}>
+              <Select
+                value={String(currentUser.id)}
+                onChange={(event) => setCurrentUserId(Number(event.target.value))}
+                sx={{ color: 'common.white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' } }}
+              >
+                {users.map((user) => (
+                  <MenuItem key={user.id} value={String(user.id)}>
+                    {user.displayName} | {user.role}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <Chip
+              label={isLoading ? 'Authenticating…' : currentUser.displayName}
+              sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: 'common.white' }}
+            />
+          )}
           <Chip label={currentUser.role} sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: 'common.white' }} />
+          {authMode === 'keycloak' && !isLoading && (
+            <Button color="inherit" startIcon={<LogoutRoundedIcon />} onClick={() => void logout()}>
+              Logout
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ display: 'flex', pt: '72px' }}>
+      <Box sx={{ display: 'flex' }}>
         <Drawer
           variant={isDesktop ? 'permanent' : 'temporary'}
           open={isDesktop || mobileOpen}
           onClose={() => setMobileOpen(false)}
-          slotProps={{
-            paper: {
-              sx: {
-                width: drawerWidth,
-                boxSizing: 'border-box',
-                borderRight: '1px solid rgba(11, 93, 92, 0.08)',
-                backgroundColor: 'rgba(255, 250, 242, 0.95)',
-                backgroundImage:
-                  'linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,250,242,0.95) 100%)',
-              },
+          ModalProps={{
+            keepMounted: true,
+          }}
+          sx={{
+            width: { lg: drawerWidth },
+            flexShrink: { lg: 0 },
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              top: `${appBarHeight}px`,
+              height: `calc(100% - ${appBarHeight}px)`,
+              borderRight: '1px solid rgba(11, 93, 92, 0.08)',
+              backgroundColor: 'rgba(255, 250, 242, 0.95)',
+              backgroundImage:
+                'linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,250,242,0.95) 100%)',
             },
           }}
         >
           {drawer}
         </Drawer>
-        <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 3.5 } }}>
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            minWidth: 0,
+            width: { lg: `calc(100% - ${drawerWidth}px)` },
+            mt: `${appBarHeight}px`,
+            p: { xs: 2, md: 3.5 },
+          }}
+        >
           <Box sx={{ mx: 'auto', maxWidth: 1440 }}>{children}</Box>
         </Box>
       </Box>

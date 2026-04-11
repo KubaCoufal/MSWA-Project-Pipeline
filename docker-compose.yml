@@ -33,6 +33,10 @@ services:
       REDIS_URL: redis://redis:6379/0
       SIMULATION_RUNTIME_SECONDS: 2
       DEFAULT_RECORDS_PROCESSED: 1200
+      AUTH_MODE: ${AUTH_MODE:-demo}
+      KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-pipeline-monitor}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-pipeline-monitor-web}
     command: >
       sh -c "python -m alembic upgrade head &&
       uvicorn app.main:app --host 0.0.0.0 --port 8000"
@@ -64,11 +68,29 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: http://localhost:8000
+        VITE_AUTH_MODE: ${AUTH_MODE:-demo}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://localhost:8080}
+        VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-pipeline-monitor}
+        VITE_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-pipeline-monitor-web}
     depends_on:
       backend:
         condition: service_started
     ports:
       - "4173:80"
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    profiles: ["keycloak"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./infra/keycloak:/opt/keycloak/data/import
+
 volumes:
   postgres_data:
+  keycloak_data:

@@ -4,6 +4,7 @@ import { afterEach, beforeAll, vi } from 'vitest'
 
 afterEach(() => {
   cleanup()
+  window.localStorage.clear()
   vi.restoreAllMocks()
 })
 

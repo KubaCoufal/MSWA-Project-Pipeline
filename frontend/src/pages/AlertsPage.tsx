@@ -1,19 +1,51 @@
-import { Alert, CircularProgress, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material'
-import { useQuery } from '@tanstack/react-query'
+import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded'
+import MarkEmailReadRoundedIcon from '@mui/icons-material/MarkEmailReadRounded'
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  MenuItem,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 
 import { api } from '../api/client'
 import type { AlertStatus } from '../api/types'
+import { liveMonitorQueryOptions } from '../app/queryOptions'
+import { useAuth } from '../auth/AuthContext'
 import { PageHeader } from '../components/common/PageHeader'
 import { StatusChip } from '../components/common/StatusChip'
 import { formatDateTime } from '../utils/format'
 
 export function AlertsPage() {
+  const { currentUser, can } = useAuth()
+  const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<'all' | AlertStatus>('all')
 
-  const alertsQuery = useQuery({ queryKey: ['alerts'], queryFn: () => api.getAlerts() })
+  const alertsQuery = useQuery({ queryKey: ['alerts'], queryFn: () => api.getAlerts(), ...liveMonitorQueryOptions })
   const pipelinesQuery = useQuery({ queryKey: ['pipelines'], queryFn: api.getPipelines })
+  const updateAlertMutation = useMutation({
+    mutationFn: ({ alertId, status }: { alertId: number; status: 'acknowledged' | 'resolved' }) =>
+      api.updateAlert(alertId, { status }, currentUser.id),
+    onSuccess: async (updatedAlert) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+        queryClient.invalidateQueries({ queryKey: ['alert', updatedAlert.id] }),
+        queryClient.invalidateQueries({ queryKey: ['alerts', updatedAlert.pipelineId] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] }),
+      ])
+    },
+  })
 
   const filteredAlerts = useMemo(() => {
     return (alertsQuery.data ?? []).filter((alertItem) => {
@@ -44,6 +76,8 @@ export function AlertsPage() {
       </Paper>
 
       <Paper sx={{ p: 2.5 }}>
+        {updateAlertMutation.isError && <Alert severity="error">{updateAlertMutation.error.message}</Alert>}
+
         {alertsQuery.isLoading ? (
           <Stack spacing={2} sx={{ py: 6, alignItems: 'center' }}>
             <CircularProgress />
@@ -62,6 +96,7 @@ export function AlertsPage() {
                 <TableCell>Severity</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Created</TableCell>
+                {can('admin', 'operator') && <TableCell align="right">Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -87,6 +122,35 @@ export function AlertsPage() {
                       <StatusChip value={alertItem.status} />
                     </TableCell>
                     <TableCell>{formatDateTime(alertItem.createdAt)}</TableCell>
+                    {can('admin', 'operator') && (
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }} useFlexGap>
+                          {alertItem.status === 'open' && (
+                            <Button
+                              size="small"
+                              startIcon={<MarkEmailReadRoundedIcon />}
+                              onClick={() =>
+                                updateAlertMutation.mutate({ alertId: alertItem.id, status: 'acknowledged' })
+                              }
+                              disabled={updateAlertMutation.isPending}
+                            >
+                              Acknowledge
+                            </Button>
+                          )}
+                          {alertItem.status !== 'resolved' && (
+                            <Button
+                              size="small"
+                              color="success"
+                              startIcon={<DoneAllRoundedIcon />}
+                              onClick={() => updateAlertMutation.mutate({ alertId: alertItem.id, status: 'resolved' })}
+                              disabled={updateAlertMutation.isPending}
+                            >
+                              Resolve
+                            </Button>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })}

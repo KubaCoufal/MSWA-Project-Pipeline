@@ -13,6 +13,7 @@ from app.api.routes.pipelines import router as pipelines_router
 from app.api.routes.runs import router as runs_router
 from app.core.config import settings
 from app.db import Base, SessionLocal, engine
+from app.services.demo_content import seed_demo_content
 from app.services.demo_users import seed_demo_users
 
 
@@ -23,6 +24,8 @@ async def lifespan(_: FastAPI):
 
     with SessionLocal() as session:
         seed_demo_users(session)
+        if settings.seed_demo_content:
+            seed_demo_content(session)
     yield
 
 

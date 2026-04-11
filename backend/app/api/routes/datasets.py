@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import require_roles
+from app.core.security import get_current_user, require_roles
 from app.db import get_session
 from app.enums import UserRole
 from app.models import Dataset
 from app.schemas import DatasetCreate, DatasetRead
 
-router = APIRouter(prefix="/datasets", tags=["datasets"])
+router = APIRouter(prefix="/datasets", tags=["datasets"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("", response_model=list[DatasetRead])

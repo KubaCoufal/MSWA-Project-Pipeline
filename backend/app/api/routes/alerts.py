@@ -5,13 +5,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user, require_roles
 from app.db import get_session
-from app.enums import AlertStatus
+from app.enums import AlertStatus, UserRole
 from app.models import Alert
-from app.schemas import AlertRead
-from app.services.alerts import list_alerts_query
+from app.schemas import AlertRead, AlertUpdate
+from app.services.alerts import list_alerts_query, update_alert
 
-router = APIRouter(prefix="/alerts", tags=["alerts"])
+router = APIRouter(prefix="/alerts", tags=["alerts"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("", response_model=list[AlertRead])
@@ -29,3 +30,16 @@ def get_alert(alert_id: int, session: Annotated[Session, Depends(get_session)]) 
     if alert is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert was not found.")
     return alert
+
+
+@router.patch(
+    "/{alert_id}",
+    response_model=AlertRead,
+    dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.OPERATOR))],
+)
+def patch_alert(
+    alert_id: int,
+    payload: AlertUpdate,
+    session: Annotated[Session, Depends(get_session)],
+) -> Alert:
+    return update_alert(session, alert_id, payload)

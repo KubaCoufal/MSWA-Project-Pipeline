@@ -18,6 +18,7 @@ import { Link as RouterLink } from 'react-router-dom'
 
 import { api } from '../api/client'
 import type { RunStatus } from '../api/types'
+import { liveMonitorQueryOptions } from '../app/queryOptions'
 import { PageHeader } from '../components/common/PageHeader'
 import { StatusChip } from '../components/common/StatusChip'
 import { formatDateTime, formatDuration, formatNumber } from '../utils/format'
@@ -29,7 +30,7 @@ export function RunsPage() {
   const deferredPipelineFilter = useDeferredValue(pipelineFilter)
   const deferredStatusFilter = useDeferredValue(statusFilter)
 
-  const runsQuery = useQuery({ queryKey: ['runs'], queryFn: () => api.getRuns() })
+  const runsQuery = useQuery({ queryKey: ['runs'], queryFn: () => api.getRuns(), ...liveMonitorQueryOptions })
   const pipelinesQuery = useQuery({ queryKey: ['pipelines'], queryFn: api.getPipelines })
 
   const pipelineMap = useMemo(

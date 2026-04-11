@@ -51,6 +51,40 @@ def test_pipeline_creation_requires_existing_dataset(client, admin_headers) -> N
     assert response.status_code == 404
 
 
+def test_admin_can_update_pipeline_metadata(client, admin_headers) -> None:
+    dataset_id = create_dataset(client, admin_headers)
+    pipeline_id = create_pipeline(client, admin_headers, dataset_id)
+
+    response = client.patch(
+        f"/pipelines/{pipeline_id}",
+        headers=admin_headers,
+        json={
+            "name": "daily-aggregation-updated",
+            "description": "Updated pipeline description",
+            "schedule": "0 4 * * *",
+            "active": False,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "daily-aggregation-updated"
+    assert response.json()["schedule"] == "0 4 * * *"
+    assert response.json()["active"] is False
+
+
+def test_operator_cannot_update_pipeline_metadata(client, admin_headers, operator_headers) -> None:
+    dataset_id = create_dataset(client, admin_headers)
+    pipeline_id = create_pipeline(client, admin_headers, dataset_id)
+
+    response = client.patch(
+        f"/pipelines/{pipeline_id}",
+        headers=operator_headers,
+        json={"active": False},
+    )
+
+    assert response.status_code == 403
+
+
 def test_inactive_pipeline_cannot_run(client, admin_headers, operator_headers, monkeypatch) -> None:
     monkeypatch.setattr("app.services.runs.enqueue_run_processing", lambda run_id: None)
     dataset_id = create_dataset(client, admin_headers)

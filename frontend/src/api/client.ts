@@ -8,9 +8,12 @@ import type {
   Dataset,
   Pipeline,
   Run,
+  UpdateAlertInput,
   UpdatePipelineInput,
   UpdateRunInput,
 } from './types'
+import { AUTH_MODE } from '../auth/config'
+import { getStoredAuthToken } from '../auth/storage'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
@@ -21,6 +24,13 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, userId?: number
   }
   if (userId) {
     headers.set('X-Demo-User-Id', String(userId))
+  }
+  if (AUTH_MODE === 'keycloak') {
+    headers.delete('X-Demo-User-Id')
+    const token = getStoredAuthToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -89,4 +99,6 @@ export const api = {
   getAlerts: (filters: { pipelineId?: number; status?: string } = {}) =>
     apiFetch<AlertEvent[]>(`/alerts${buildQuery(filters)}`),
   getAlert: (alertId: number) => apiFetch<AlertEvent>(`/alerts/${alertId}`),
+  updateAlert: (alertId: number, payload: UpdateAlertInput, userId: number) =>
+    apiFetch<AlertEvent>(`/alerts/${alertId}`, { method: 'PATCH', body: JSON.stringify(payload) }, userId),
 }

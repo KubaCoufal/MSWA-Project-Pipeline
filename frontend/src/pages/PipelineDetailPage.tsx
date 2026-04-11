@@ -1,3 +1,4 @@
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import {
   Alert,
@@ -14,12 +15,16 @@ import {
   Typography,
 } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 
 import { api } from '../api/client'
+import type { UpdatePipelineInput } from '../api/types'
+import { liveMonitorQueryOptions } from '../app/queryOptions'
 import { useAuth } from '../auth/AuthContext'
 import { PageHeader } from '../components/common/PageHeader'
 import { StatusChip } from '../components/common/StatusChip'
+import { EditPipelineDialog } from '../components/forms/EditPipelineDialog'
 import { formatDateTime, formatDuration } from '../utils/format'
 
 export function PipelineDetailPage() {
@@ -27,19 +32,23 @@ export function PipelineDetailPage() {
   const pipelineId = Number(params.pipelineId)
   const { currentUser, can } = useAuth()
   const queryClient = useQueryClient()
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   const pipelineQuery = useQuery({
     queryKey: ['pipeline', pipelineId],
     queryFn: () => api.getPipeline(pipelineId),
+    ...liveMonitorQueryOptions,
   })
   const datasetsQuery = useQuery({ queryKey: ['datasets'], queryFn: api.getDatasets })
   const runsQuery = useQuery({
     queryKey: ['runs', pipelineId],
     queryFn: () => api.getRuns({ pipelineId }),
+    ...liveMonitorQueryOptions,
   })
   const alertsQuery = useQuery({
     queryKey: ['alerts', pipelineId],
     queryFn: () => api.getAlerts({ pipelineId }),
+    ...liveMonitorQueryOptions,
   })
   const rulesQuery = useQuery({
     queryKey: ['alert-rules', pipelineId],
@@ -53,6 +62,16 @@ export function PipelineDetailPage() {
         queryClient.invalidateQueries({ queryKey: ['runs', pipelineId] }),
         queryClient.invalidateQueries({ queryKey: ['pipelines'] }),
       ])
+    },
+  })
+  const updatePipelineMutation = useMutation({
+    mutationFn: (payload: UpdatePipelineInput) => api.updatePipeline(pipelineId, payload, currentUser.id),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pipeline', pipelineId] }),
+        queryClient.invalidateQueries({ queryKey: ['pipelines'] }),
+      ])
+      setEditDialogOpen(false)
     },
   })
 
@@ -83,20 +102,39 @@ export function PipelineDetailPage() {
         title={pipeline.name}
         description={pipeline.description || 'Simulated processing pipeline with manual run support.'}
         actions={
-          can('admin', 'operator') ? (
-            <Button
-              startIcon={<PlayArrowRoundedIcon />}
-              variant="contained"
-              onClick={() => runPipelineMutation.mutate()}
-              disabled={!pipeline.active || runPipelineMutation.isPending}
-            >
-              Run pipeline
-            </Button>
-          ) : undefined
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+            {can('admin') && (
+              <>
+                <Button startIcon={<EditRoundedIcon />} variant="outlined" onClick={() => setEditDialogOpen(true)}>
+                  Edit pipeline
+                </Button>
+                <Button
+                  variant="outlined"
+                  color={pipeline.active ? 'warning' : 'success'}
+                  onClick={() => updatePipelineMutation.mutate({ active: !pipeline.active })}
+                  disabled={updatePipelineMutation.isPending}
+                >
+                  {pipeline.active ? 'Deactivate pipeline' : 'Activate pipeline'}
+                </Button>
+              </>
+            )}
+            {can('admin', 'operator') && (
+              <Button
+                startIcon={<PlayArrowRoundedIcon />}
+                variant="contained"
+                onClick={() => runPipelineMutation.mutate()}
+                disabled={!pipeline.active || runPipelineMutation.isPending}
+              >
+                Run pipeline
+              </Button>
+            )}
+          </Stack>
         }
       />
 
-      {runPipelineMutation.isError && <Alert severity="error">{runPipelineMutation.error.message}</Alert>}
+      {(runPipelineMutation.isError || updatePipelineMutation.isError) && (
+        <Alert severity="error">{runPipelineMutation.error?.message || updatePipelineMutation.error?.message}</Alert>
+      )}
 
       <Box
         sx={{
@@ -235,6 +273,14 @@ export function PipelineDetailPage() {
           </Paper>
         </Stack>
       </Box>
+
+      <EditPipelineDialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        pipeline={pipeline}
+        onSubmit={(payload) => updatePipelineMutation.mutate(payload)}
+        loading={updatePipelineMutation.isPending}
+      />
     </Stack>
   )
 }

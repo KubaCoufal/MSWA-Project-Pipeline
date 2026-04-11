@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.security import require_roles
+from app.core.security import get_current_user, require_roles
 from app.db import get_session
 from app.enums import UserRole
 from app.models import Pipeline
@@ -14,7 +14,7 @@ from app.schemas import PipelineCreate, PipelineRead, PipelineUpdate, RunRead
 from app.services.pipelines import create_pipeline, serialize_pipeline, update_pipeline
 from app.services.runs import create_run, runtime_seconds
 
-router = APIRouter(prefix="/pipelines", tags=["pipelines"])
+router = APIRouter(prefix="/pipelines", tags=["pipelines"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("", response_model=list[PipelineRead])

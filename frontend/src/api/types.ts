@@ -115,3 +115,7 @@ export interface AlertEvent {
   status: AlertStatus
   createdAt: string
 }
+
+export interface UpdateAlertInput {
+  status: AlertStatus
+}

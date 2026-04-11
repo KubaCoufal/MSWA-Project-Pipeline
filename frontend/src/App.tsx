@@ -26,6 +26,7 @@ function App() {
         defaultOptions: {
           queries: {
             refetchOnWindowFocus: false,
+            staleTime: 2000,
           },
         },
       }),

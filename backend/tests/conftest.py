@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 TEST_DIR = Path(tempfile.mkdtemp(prefix="pipeline-monitor-tests-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{(TEST_DIR / 'test.db').as_posix()}"
 os.environ["SIMULATION_RUNTIME_SECONDS"] = "0"
+os.environ["SEED_DEMO_CONTENT"] = "false"
 
 from app.db import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402

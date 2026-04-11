@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link as RouterLink } from 'react-router-dom'
 
 import { api } from '../api/client'
+import { liveMonitorQueryOptions } from '../app/queryOptions'
 import { PageHeader } from '../components/common/PageHeader'
 import { StatusChip } from '../components/common/StatusChip'
 import { formatDateTime, formatDuration, formatNumber } from '../utils/format'
@@ -25,10 +26,10 @@ const cardSx = {
 }
 
 export function DashboardPage() {
-  const summaryQuery = useQuery({ queryKey: ['dashboard-summary'], queryFn: api.getDashboardSummary })
-  const pipelinesQuery = useQuery({ queryKey: ['pipelines'], queryFn: api.getPipelines })
-  const runsQuery = useQuery({ queryKey: ['runs'], queryFn: () => api.getRuns() })
-  const alertsQuery = useQuery({ queryKey: ['alerts'], queryFn: () => api.getAlerts() })
+  const summaryQuery = useQuery({ queryKey: ['dashboard-summary'], queryFn: api.getDashboardSummary, ...liveMonitorQueryOptions })
+  const pipelinesQuery = useQuery({ queryKey: ['pipelines'], queryFn: api.getPipelines, ...liveMonitorQueryOptions })
+  const runsQuery = useQuery({ queryKey: ['runs'], queryFn: () => api.getRuns(), ...liveMonitorQueryOptions })
+  const alertsQuery = useQuery({ queryKey: ['alerts'], queryFn: () => api.getAlerts(), ...liveMonitorQueryOptions })
 
   if (summaryQuery.isLoading) {
     return (
@@ -131,7 +132,10 @@ export function DashboardPage() {
               Open alerts
             </Typography>
             <Stack spacing={1.5}>
-              {(alertsQuery.data ?? []).slice(0, 4).map((alertItem) => (
+              {(alertsQuery.data ?? [])
+                .filter((alertItem) => alertItem.status === 'open')
+                .slice(0, 4)
+                .map((alertItem) => (
                 <Box key={alertItem.id} sx={{ borderRadius: 3, bgcolor: 'rgba(183,58,58,0.06)', p: 1.5 }}>
                   <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between' }}>
                     <Typography component={RouterLink} to={`/alerts/${alertItem.id}`} sx={{ color: 'primary.main' }}>

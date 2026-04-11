@@ -128,6 +128,10 @@ class AlertRead(AppSchema):
     created_at: datetime
 
 
+class AlertUpdate(AppSchema):
+    status: AlertStatus
+
+
 class DashboardSummary(AppSchema):
     dataset_count: int
     pipeline_count: int

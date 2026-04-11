@@ -1,4 +1,5 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import {
@@ -20,20 +21,23 @@ import { useMemo, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 
 import { api } from '../api/client'
-import type { CreatePipelineInput } from '../api/types'
+import type { CreatePipelineInput, Pipeline, UpdatePipelineInput } from '../api/types'
+import { liveMonitorQueryOptions } from '../app/queryOptions'
 import { useAuth } from '../auth/AuthContext'
 import { PageHeader } from '../components/common/PageHeader'
 import { StatusChip } from '../components/common/StatusChip'
 import { CreatePipelineDialog } from '../components/forms/CreatePipelineDialog'
+import { EditPipelineDialog } from '../components/forms/EditPipelineDialog'
 import { formatDateTime } from '../utils/format'
 
 export function PipelinesPage() {
   const { currentUser, can } = useAuth()
   const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingPipeline, setEditingPipeline] = useState<Pipeline | null>(null)
 
   const datasetsQuery = useQuery({ queryKey: ['datasets'], queryFn: api.getDatasets })
-  const pipelinesQuery = useQuery({ queryKey: ['pipelines'], queryFn: api.getPipelines })
+  const pipelinesQuery = useQuery({ queryKey: ['pipelines'], queryFn: api.getPipelines, ...liveMonitorQueryOptions })
   const pipelines = pipelinesQuery.data ?? []
 
   const datasetMap = useMemo(
@@ -60,10 +64,16 @@ export function PipelinesPage() {
   })
 
   const updatePipelineMutation = useMutation({
-    mutationFn: ({ pipelineId, active }: { pipelineId: number; active: boolean }) =>
-      api.updatePipeline(pipelineId, { active }, currentUser.id),
+    mutationFn: ({ pipelineId, payload }: { pipelineId: number; payload: UpdatePipelineInput }) =>
+      api.updatePipeline(pipelineId, payload, currentUser.id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['pipelines'] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pipelines'] }),
+        editingPipeline
+          ? queryClient.invalidateQueries({ queryKey: ['pipeline', editingPipeline.id] })
+          : Promise.resolve(),
+      ])
+      setEditingPipeline(null)
     },
   })
 
@@ -135,6 +145,16 @@ export function PipelinesPage() {
                   <TableCell>{formatDateTime(pipeline.latestRunStartedAt)}</TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                      {can('admin') && (
+                        <Button
+                          startIcon={<EditRoundedIcon />}
+                          variant="outlined"
+                          onClick={() => setEditingPipeline(pipeline)}
+                          aria-label={`Edit ${pipeline.name}`}
+                        >
+                          Edit
+                        </Button>
+                      )}
                       <Button
                         startIcon={<PlayArrowRoundedIcon />}
                         variant="contained"
@@ -151,7 +171,7 @@ export function PipelinesPage() {
                             onChange={(event) =>
                               updatePipelineMutation.mutate({
                                 pipelineId: pipeline.id,
-                                active: event.target.checked,
+                                payload: { active: event.target.checked },
                               })
                             }
                           />
@@ -172,6 +192,19 @@ export function PipelinesPage() {
         datasets={datasetsQuery.data ?? []}
         onSubmit={(payload) => createPipelineMutation.mutate(payload)}
         loading={createPipelineMutation.isPending}
+      />
+
+      <EditPipelineDialog
+        open={editingPipeline !== null}
+        onClose={() => setEditingPipeline(null)}
+        pipeline={editingPipeline}
+        onSubmit={(payload) => {
+          if (!editingPipeline) {
+            return
+          }
+          updatePipelineMutation.mutate({ pipelineId: editingPipeline.id, payload })
+        }}
+        loading={updatePipelineMutation.isPending}
       />
     </Stack>
   )

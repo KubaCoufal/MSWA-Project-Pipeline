@@ -6,14 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import require_roles
+from app.core.security import get_current_user, require_roles
 from app.db import get_session
 from app.enums import UserRole
 from app.models import AlertRule
 from app.schemas import AlertRuleCreate, AlertRuleRead
 from app.services.alerts import create_alert_rule
 
-router = APIRouter(prefix="/alert-rules", tags=["alert-rules"])
+router = APIRouter(prefix="/alert-rules", tags=["alert-rules"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("", response_model=list[AlertRuleRead])
