@@ -17,6 +17,7 @@ import { Link as RouterLink, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { PageHeader } from '../components/common/PageHeader'
 import { formatDateTime } from '../utils/format'
+import { describeSchedule, scheduleDetail } from '../utils/schedule'
 
 export function DatasetDetailPage() {
   const params = useParams()
@@ -104,7 +105,12 @@ export function DatasetDetailPage() {
                         {pipeline.name}
                       </Typography>
                     </TableCell>
-                    <TableCell>{pipeline.schedule || 'No schedule'}</TableCell>
+                    <TableCell>
+                      <Typography>{describeSchedule(pipeline.schedule)}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {scheduleDetail(pipeline.schedule)}
+                      </Typography>
+                    </TableCell>
                     <TableCell>{pipeline.active ? 'Active' : 'Inactive'}</TableCell>
                   </TableRow>
                 ))}

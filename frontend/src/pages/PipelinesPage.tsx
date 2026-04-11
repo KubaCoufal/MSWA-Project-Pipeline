@@ -29,6 +29,7 @@ import { StatusChip } from '../components/common/StatusChip'
 import { CreatePipelineDialog } from '../components/forms/CreatePipelineDialog'
 import { EditPipelineDialog } from '../components/forms/EditPipelineDialog'
 import { formatDateTime } from '../utils/format'
+import { describeSchedule, scheduleDetail } from '../utils/schedule'
 
 export function PipelinesPage() {
   const { currentUser, can } = useAuth()
@@ -133,7 +134,12 @@ export function PipelinesPage() {
                     </Typography>
                   </TableCell>
                   <TableCell>{datasetMap.get(pipeline.datasetId) ?? `Dataset #${pipeline.datasetId}`}</TableCell>
-                  <TableCell>{pipeline.schedule || 'Manual only'}</TableCell>
+                  <TableCell>
+                    <Typography>{describeSchedule(pipeline.schedule)}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {scheduleDetail(pipeline.schedule)}
+                    </Typography>
+                  </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <StatusChip value={pipeline.latestRunStatus ?? 'pending'} />

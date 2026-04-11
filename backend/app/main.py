@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,10 +16,14 @@ from app.core.config import settings
 from app.db import Base, SessionLocal, engine
 from app.services.demo_content import seed_demo_content
 from app.services.demo_users import seed_demo_users
+from app.services.scheduler import run_fake_scheduler, sync_due_scheduled_runs
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    scheduler_stop_event = asyncio.Event()
+    scheduler_task: asyncio.Task | None = None
+
     if settings.database_url.startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
 
@@ -26,7 +31,18 @@ async def lifespan(_: FastAPI):
         seed_demo_users(session)
         if settings.seed_demo_content:
             seed_demo_content(session)
-    yield
+        if settings.fake_scheduler_enabled:
+            sync_due_scheduled_runs(session)
+
+    if settings.fake_scheduler_enabled:
+        scheduler_task = asyncio.create_task(run_fake_scheduler(scheduler_stop_event))
+
+    try:
+        yield
+    finally:
+        if scheduler_task is not None:
+            scheduler_stop_event.set()
+            await scheduler_task
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

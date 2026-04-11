@@ -26,6 +26,7 @@ import { PageHeader } from '../components/common/PageHeader'
 import { StatusChip } from '../components/common/StatusChip'
 import { EditPipelineDialog } from '../components/forms/EditPipelineDialog'
 import { formatDateTime, formatDuration } from '../utils/format'
+import { describeSchedule, scheduleDetail } from '../utils/schedule'
 
 export function PipelineDetailPage() {
   const params = useParams()
@@ -155,7 +156,10 @@ export function PipelineDetailPage() {
               <strong>Dataset:</strong> {dataset?.name ?? `Dataset #${pipeline.datasetId}`}
             </Typography>
             <Typography>
-              <strong>Schedule:</strong> {pipeline.schedule || 'Manual only'}
+              <strong>Schedule:</strong> {describeSchedule(pipeline.schedule)}
+            </Typography>
+            <Typography color="text.secondary">
+              <strong>Cron:</strong> {scheduleDetail(pipeline.schedule)}
             </Typography>
             <Typography>
               <strong>Version:</strong> {pipeline.currentVersionNumber}

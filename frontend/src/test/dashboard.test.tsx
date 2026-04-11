@@ -26,14 +26,61 @@ test('renders dashboard summary cards', async () => {
           openAlertCount: 2,
         }),
       )
-      .mockResolvedValueOnce(mockResponse([]))
-      .mockResolvedValueOnce(mockResponse([]))
-      .mockResolvedValueOnce(mockResponse([])),
+      .mockResolvedValueOnce(
+        mockResponse([
+          {
+            id: 1,
+            datasetId: 1,
+            name: 'daily-revenue-aggregation',
+            description: null,
+            schedule: '0 2 * * *',
+            active: true,
+            currentVersionNumber: 1,
+            latestRunStatus: 'success',
+            latestRunStartedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        mockResponse([
+          {
+            id: 91,
+            pipelineId: 1,
+            pipelineVersionNumber: 1,
+            status: 'success',
+            startedAt: new Date().toISOString(),
+            finishedAt: new Date().toISOString(),
+            recordsProcessed: 50000,
+            errorMessage: null,
+            runtimeSeconds: 180,
+            createdAt: new Date().toISOString(),
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        mockResponse([
+          {
+            id: 11,
+            ruleId: 7,
+            runId: 91,
+            pipelineId: 1,
+            message: 'Demo alert',
+            severity: 'medium',
+            status: 'open',
+            createdAt: new Date().toISOString(),
+          },
+        ]),
+      ),
   )
 
   renderWithProviders(<DashboardPage />, { route: '/dashboard' })
 
   expect(await screen.findByText('Dashboard')).toBeInTheDocument()
   expect(await screen.findByText('9')).toBeInTheDocument()
+  expect(screen.getByText('Run activity, last 7 days')).toBeInTheDocument()
+  expect(screen.getByText('Processed records, last 7 days')).toBeInTheDocument()
+  expect(screen.getByText('Daily at 02:00 UTC')).toBeInTheDocument()
   expect(screen.getAllByText('Open alerts').length).toBeGreaterThan(0)
 })

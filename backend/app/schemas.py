@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from croniter import croniter
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.enums import AlertRuleType, AlertSeverity, AlertStatus, RunStatus, UserRole
@@ -48,12 +49,38 @@ class PipelineCreate(AppSchema):
     schedule: str | None = Field(default=None, max_length=120)
     active: bool = True
 
+    @field_validator("schedule", mode="before")
+    @classmethod
+    def validate_schedule(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not croniter.is_valid(normalized):
+            raise ValueError("schedule must be a valid cron expression.")
+        return normalized
+
 
 class PipelineUpdate(AppSchema):
     name: str | None = Field(default=None, min_length=2, max_length=120)
     description: str | None = None
     schedule: str | None = Field(default=None, max_length=120)
     active: bool | None = None
+
+    @field_validator("schedule", mode="before")
+    @classmethod
+    def validate_schedule(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not croniter.is_valid(normalized):
+            raise ValueError("schedule must be a valid cron expression.")
+        return normalized
 
 
 class PipelineRead(AppSchema):

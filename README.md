@@ -8,6 +8,7 @@ Full-stack school project for simulated big data pipeline monitoring. The stack 
 - Dashboard, list/detail pages, quick alert handling, pipeline edit controls, and mobile-friendly responsive UI
 - Demo auth boundary with an optional Keycloak mode behind the same frontend/backend auth contract
 - Docker Compose setup for `frontend`, `backend`, `worker`, `postgres`, `redis`, and optional `keycloak`
+- Rich seeded simulation data plus a fake cron-based scheduler for demo activity
 - Unit, integration, smoke, and browser end-to-end test coverage
 
 ## Demo users
@@ -68,9 +69,21 @@ Default imported Keycloak realm settings:
   - `admin / admin123`
   - `operator / operator123`
   - `viewer / viewer123`
+  - `user01 / user01123` (`GeneralUser`, basic read-only access)
 
 The frontend picks its auth mode from `VITE_AUTH_MODE`, while the backend uses `AUTH_MODE`. Demo mode stays the default.
 In Keycloak mode, the frontend uses `login-required`, and every application API route requires a bearer token. Only `/health` stays public so Docker health checks keep working.
+
+## Schedule metadata
+Pipeline schedules use standard cron expressions and drive the fake scheduler in demo mode.
+
+Examples:
+- `0 2 * * *` = every day at `02:00` UTC
+- `30 3 * * *` = every day at `03:30` UTC
+- `0 */6 * * *` = every 6 hours, on the hour
+- `*/15 * * * *` = every 15 minutes
+
+The scheduler is simulated only. It checks active pipelines with a schedule, creates any missing due run, and hands it to the worker queue. It does not try to be a production-grade orchestration system.
 
 ## Persisting Keycloak users and roles
 This repo now supports two layers of persistence for Keycloak:

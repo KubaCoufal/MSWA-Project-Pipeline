@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     )
     seed_demo_content: bool = Field(default=True, alias="SEED_DEMO_CONTENT")
     auth_mode: str = Field(default="demo", alias="AUTH_MODE")
+    fake_scheduler_enabled: bool = Field(default=True, alias="FAKE_SCHEDULER_ENABLED")
+    fake_scheduler_poll_seconds: int = Field(default=30, alias="FAKE_SCHEDULER_POLL_SECONDS")
     keycloak_server_url: str = Field(default="http://localhost:8080", alias="KEYCLOAK_SERVER_URL")
     keycloak_realm: str = Field(default="pipeline-monitor", alias="KEYCLOAK_REALM")
     keycloak_client_id: str = Field(default="pipeline-monitor-web", alias="KEYCLOAK_CLIENT_ID")

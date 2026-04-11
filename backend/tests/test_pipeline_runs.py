@@ -51,6 +51,25 @@ def test_pipeline_creation_requires_existing_dataset(client, admin_headers) -> N
     assert response.status_code == 404
 
 
+def test_pipeline_creation_rejects_invalid_schedule(client, admin_headers) -> None:
+    dataset_id = create_dataset(client, admin_headers)
+
+    response = client.post(
+        "/pipelines",
+        headers=admin_headers,
+        json={
+            "datasetId": dataset_id,
+            "name": "invalid-schedule-pipeline",
+            "description": "Should be rejected",
+            "schedule": "not-a-cron-expression",
+            "active": True,
+        },
+    )
+
+    assert response.status_code == 422
+    assert "valid cron expression" in response.text
+
+
 def test_admin_can_update_pipeline_metadata(client, admin_headers) -> None:
     dataset_id = create_dataset(client, admin_headers)
     pipeline_id = create_pipeline(client, admin_headers, dataset_id)
