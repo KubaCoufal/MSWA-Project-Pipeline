@@ -188,6 +188,17 @@ cython_debug/
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+*.tsbuildinfo
+
+# Local project data
+backend/pipeline_monitor.db
+.playwright-mcp/
+
 # Ruff stuff:
 .ruff_cache/
 
