@@ -44,6 +44,7 @@ export interface Pipeline {
   description: string | null
   schedule: string | null
   active: boolean
+  kaggleDataset: string | null
   currentVersionNumber: number
   latestRunStatus: RunStatus | null
   latestRunStartedAt: string | null
@@ -57,6 +58,7 @@ export interface CreatePipelineInput {
   description?: string
   schedule?: string
   active: boolean
+  kaggleDataset?: string
 }
 
 export interface UpdatePipelineInput {
@@ -64,6 +66,34 @@ export interface UpdatePipelineInput {
   description?: string
   schedule?: string
   active?: boolean
+  kaggleDataset?: string
+}
+
+export interface RunReportStat {
+  count: number
+  mean: number
+  std: number
+  min: number
+  p25: number
+  p50: number
+  p75: number
+  max: number
+}
+
+export interface RunReportTrendPoint {
+  date: string
+  value: number
+  rolling7d: number
+}
+
+export interface RunReport {
+  dataset: string
+  file: string
+  rowCount: number
+  columns: string[]
+  numericColumns: string[]
+  stats: Record<string, RunReportStat>
+  trend: RunReportTrendPoint[]
 }
 
 export interface Run {
@@ -75,6 +105,7 @@ export interface Run {
   finishedAt: string | null
   recordsProcessed: number
   errorMessage: string | null
+  report: RunReport | null
   runtimeSeconds: number | null
   createdAt: string
 }

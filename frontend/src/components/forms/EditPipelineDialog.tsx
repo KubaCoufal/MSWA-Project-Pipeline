@@ -35,6 +35,7 @@ export function EditPipelineDialog({
       description: pipeline?.description ?? '',
       schedule: pipeline?.schedule ?? '',
       active: pipeline?.active ?? true,
+      kaggleDataset: pipeline?.kaggleDataset ?? '',
     }),
     [pipeline],
   )
@@ -64,6 +65,12 @@ export function EditPipelineDialog({
             helperText={`Cron metadata. Example: 0 2 * * * (${describeSchedule('0 2 * * *')}) or */15 * * * * (${describeSchedule(
               '*/15 * * * *',
             )}). Leave blank for manual-only runs.`}
+          />
+          <TextField
+            label="Kaggle dataset"
+            value={formState.kaggleDataset ?? ''}
+            onChange={(event) => setFormState((current) => ({ ...current, kaggleDataset: event.target.value }))}
+            helperText="Optional. Format: owner/dataset-name. Clear to revert to simulated runs."
           />
           <TextField
             label="Description"

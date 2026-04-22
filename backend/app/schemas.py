@@ -48,6 +48,7 @@ class PipelineCreate(AppSchema):
     description: str | None = None
     schedule: str | None = Field(default=None, max_length=120)
     active: bool = True
+    kaggle_dataset: str | None = Field(default=None, max_length=200)
 
     @field_validator("schedule", mode="before")
     @classmethod
@@ -62,12 +63,26 @@ class PipelineCreate(AppSchema):
             raise ValueError("schedule must be a valid cron expression.")
         return normalized
 
+    @field_validator("kaggle_dataset", mode="before")
+    @classmethod
+    def validate_kaggle_dataset(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        parts = normalized.split("/")
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise ValueError("kaggleDataset must be in 'owner/dataset-name' format.")
+        return normalized
+
 
 class PipelineUpdate(AppSchema):
     name: str | None = Field(default=None, min_length=2, max_length=120)
     description: str | None = None
     schedule: str | None = Field(default=None, max_length=120)
     active: bool | None = None
+    kaggle_dataset: str | None = Field(default=None, max_length=200)
 
     @field_validator("schedule", mode="before")
     @classmethod
@@ -80,6 +95,19 @@ class PipelineUpdate(AppSchema):
             return None
         if not croniter.is_valid(normalized):
             raise ValueError("schedule must be a valid cron expression.")
+        return normalized
+
+    @field_validator("kaggle_dataset", mode="before")
+    @classmethod
+    def validate_kaggle_dataset(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        parts = normalized.split("/")
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise ValueError("kaggleDataset must be in 'owner/dataset-name' format.")
         return normalized
 
 
@@ -90,6 +118,7 @@ class PipelineRead(AppSchema):
     description: str | None
     schedule: str | None
     active: bool
+    kaggle_dataset: str | None = None
     current_version_number: int
     latest_run_status: RunStatus | None = None
     latest_run_started_at: datetime | None = None
@@ -106,6 +135,7 @@ class RunRead(AppSchema):
     finished_at: datetime | None
     records_processed: int
     error_message: str | None
+    report: dict | None = None
     runtime_seconds: int | None = None
     created_at: datetime
 

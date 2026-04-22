@@ -38,6 +38,7 @@ export function CreatePipelineDialog({
       description: '',
       schedule: '0 2 * * *',
       active: true,
+      kaggleDataset: '',
     }),
     [defaultDatasetId],
   )
@@ -81,6 +82,12 @@ export function CreatePipelineDialog({
             helperText={`Cron metadata. Example: 0 2 * * * (${describeSchedule('0 2 * * *')}) or */15 * * * * (${describeSchedule(
               '*/15 * * * *',
             )}). Leave blank for manual-only runs.`}
+          />
+          <TextField
+            label="Kaggle dataset"
+            value={formState.kaggleDataset ?? ''}
+            onChange={(event) => setFormState((current) => ({ ...current, kaggleDataset: event.target.value }))}
+            helperText="Optional. Format: owner/dataset-name (e.g. zillow/zecon). The worker downloads and analyses this on every run."
           />
           <TextField
             label="Description"
