@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react'
 
 import type { Pipeline, UpdatePipelineInput } from '../../api/types'
 import { describeSchedule } from '../../utils/schedule'
+import { KaggleDatasetField } from './KaggleDatasetField'
 
 interface EditPipelineDialogProps {
   open: boolean
@@ -66,11 +67,9 @@ export function EditPipelineDialog({
               '*/15 * * * *',
             )}). Leave blank for manual-only runs.`}
           />
-          <TextField
-            label="Kaggle dataset"
+          <KaggleDatasetField
             value={formState.kaggleDataset ?? ''}
-            onChange={(event) => setFormState((current) => ({ ...current, kaggleDataset: event.target.value }))}
-            helperText="Optional. Format: owner/dataset-name. Clear to revert to simulated runs."
+            onChange={(v) => setFormState((current) => ({ ...current, kaggleDataset: v }))}
           />
           <TextField
             label="Description"

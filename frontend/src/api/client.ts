@@ -6,6 +6,7 @@ import type {
   CreatePipelineInput,
   DashboardSummary,
   Dataset,
+  KaggleDatasetResult,
   Pipeline,
   Run,
   UpdateAlertInput,
@@ -101,4 +102,7 @@ export const api = {
   getAlert: (alertId: number) => apiFetch<AlertEvent>(`/alerts/${alertId}`),
   updateAlert: (alertId: number, payload: UpdateAlertInput, userId: number) =>
     apiFetch<AlertEvent>(`/alerts/${alertId}`, { method: 'PATCH', body: JSON.stringify(payload) }, userId),
+
+  searchKaggleDatasets: (q: string) =>
+    apiFetch<KaggleDatasetResult[]>(`/kaggle/datasets?q=${encodeURIComponent(q)}`),
 }

@@ -150,3 +150,12 @@ export interface AlertEvent {
 export interface UpdateAlertInput {
   status: AlertStatus
 }
+
+export interface KaggleDatasetResult {
+  ref: string
+  title: string
+  ownerName: string
+  totalBytes: number
+  downloadCount: number
+  lastUpdated: string | null
+}

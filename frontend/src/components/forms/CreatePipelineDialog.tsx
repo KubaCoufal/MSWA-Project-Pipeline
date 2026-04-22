@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react'
 
 import type { CreatePipelineInput, Dataset } from '../../api/types'
 import { describeSchedule } from '../../utils/schedule'
+import { KaggleDatasetField } from './KaggleDatasetField'
 
 interface CreatePipelineDialogProps {
   open: boolean
@@ -83,11 +84,9 @@ export function CreatePipelineDialog({
               '*/15 * * * *',
             )}). Leave blank for manual-only runs.`}
           />
-          <TextField
-            label="Kaggle dataset"
+          <KaggleDatasetField
             value={formState.kaggleDataset ?? ''}
-            onChange={(event) => setFormState((current) => ({ ...current, kaggleDataset: event.target.value }))}
-            helperText="Optional. Format: owner/dataset-name (e.g. zillow/zecon). The worker downloads and analyses this on every run."
+            onChange={(v) => setFormState((current) => ({ ...current, kaggleDataset: v }))}
           />
           <TextField
             label="Description"
