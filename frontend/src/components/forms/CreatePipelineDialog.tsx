@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react'
 
 import type { CreatePipelineInput, Dataset } from '../../api/types'
 import { describeSchedule } from '../../utils/schedule'
+import { KaggleDatasetField } from './KaggleDatasetField'
 
 interface CreatePipelineDialogProps {
   open: boolean
@@ -38,6 +39,7 @@ export function CreatePipelineDialog({
       description: '',
       schedule: '0 2 * * *',
       active: true,
+      kaggleDataset: '',
     }),
     [defaultDatasetId],
   )
@@ -81,6 +83,10 @@ export function CreatePipelineDialog({
             helperText={`Cron metadata. Example: 0 2 * * * (${describeSchedule('0 2 * * *')}) or */15 * * * * (${describeSchedule(
               '*/15 * * * *',
             )}). Leave blank for manual-only runs.`}
+          />
+          <KaggleDatasetField
+            value={formState.kaggleDataset ?? ''}
+            onChange={(v) => setFormState((current) => ({ ...current, kaggleDataset: v }))}
           />
           <TextField
             label="Description"

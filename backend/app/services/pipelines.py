@@ -25,6 +25,7 @@ def serialize_pipeline(session: Session, pipeline: Pipeline) -> PipelineRead:
         description=pipeline.description,
         schedule=pipeline.schedule,
         active=pipeline.active,
+        kaggle_dataset=pipeline.kaggle_dataset,
         current_version_number=active_version.version_number if active_version else 1,
         latest_run_status=latest_run.status if latest_run else None,
         latest_run_started_at=latest_run.started_at if latest_run else None,
@@ -44,6 +45,7 @@ def create_pipeline(session: Session, payload: PipelineCreate) -> Pipeline:
         description=payload.description,
         schedule=payload.schedule,
         active=payload.active,
+        kaggle_dataset=payload.kaggle_dataset,
     )
     session.add(pipeline)
     session.flush()

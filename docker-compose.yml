@@ -37,6 +37,8 @@ services:
       KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL:-http://keycloak:8080}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-pipeline-monitor}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-pipeline-monitor-web}
+      KAGGLE_USERNAME: ${KAGGLE_USERNAME:-}
+      KAGGLE_KEY: ${KAGGLE_KEY:-}
     command: >
       sh -c "python -m alembic upgrade head &&
       uvicorn app.main:app --host 0.0.0.0 --port 8000"
@@ -56,6 +58,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       SIMULATION_RUNTIME_SECONDS: 2
       DEFAULT_RECORDS_PROCESSED: 1200
+      KAGGLE_USERNAME: ${KAGGLE_USERNAME:-}
+      KAGGLE_KEY: ${KAGGLE_KEY:-}
     command: ["python", "-m", "app.workers.worker"]
     depends_on:
       postgres:
