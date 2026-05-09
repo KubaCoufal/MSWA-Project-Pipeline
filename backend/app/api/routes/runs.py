@@ -10,7 +10,8 @@ from app.core.security import get_current_user, require_roles
 from app.db import get_session
 from app.enums import RunStatus, UserRole
 from app.models import Run
-from app.schemas import RunRead, RunUpdate
+from app.schemas import RunRead, RunStepRead, RunUpdate
+from app.services.run_steps import list_run_steps
 from app.services.runs import list_runs_query, runtime_seconds, update_run
 
 router = APIRouter(prefix="/runs", tags=["runs"], dependencies=[Depends(get_current_user)])
@@ -45,6 +46,14 @@ def get_run(run_id: int, session: Annotated[Session, Depends(get_session)]) -> R
     if run is None:
         raise HTTPException(status_code=404, detail="Run was not found.")
     return serialize_run(run)
+
+
+@router.get("/{run_id}/steps", response_model=list[RunStepRead])
+def get_run_steps(run_id: int, session: Annotated[Session, Depends(get_session)]) -> list[RunStepRead]:
+    run = session.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run was not found.")
+    return [RunStepRead.model_validate(step) for step in list_run_steps(session, run_id)]
 
 
 @router.patch(

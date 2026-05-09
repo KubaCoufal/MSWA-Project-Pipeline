@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     keycloak_server_url: str = Field(default="http://localhost:8080", alias="KEYCLOAK_SERVER_URL")
     keycloak_realm: str = Field(default="pipeline-monitor", alias="KEYCLOAK_REALM")
     keycloak_client_id: str = Field(default="pipeline-monitor-web", alias="KEYCLOAK_CLIENT_ID")
+    kaggle_username: str | None = Field(default=None, alias="KAGGLE_USERNAME")
+    kaggle_key: str | None = Field(default=None, alias="KAGGLE_KEY")
+    kaggle_max_download_mb: int = Field(default=50, alias="KAGGLE_MAX_DOWNLOAD_MB")
 
     @property
     def keycloak_issuer_url(self) -> str:

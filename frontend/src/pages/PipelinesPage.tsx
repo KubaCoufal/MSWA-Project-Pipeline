@@ -31,6 +31,19 @@ import { EditPipelineDialog } from '../components/forms/EditPipelineDialog'
 import { formatDateTime } from '../utils/format'
 import { describeSchedule, scheduleDetail } from '../utils/schedule'
 
+function describeSource(sourceType: string, kaggleDatasetRef?: string | null, kaggleCategory?: string | null) {
+  if (sourceType === 'kaggle_latest') {
+    return 'Latest Kaggle CSV'
+  }
+  if (sourceType === 'kaggle_latest_category') {
+    return `Latest Kaggle CSV: ${kaggleCategory ?? 'topic'}`
+  }
+  if (sourceType === 'kaggle_specific') {
+    return kaggleDatasetRef ?? 'Kaggle dataset'
+  }
+  return 'Simulated'
+}
+
 export function PipelinesPage() {
   const { currentUser, can } = useAuth()
   const queryClient = useQueryClient()
@@ -47,9 +60,37 @@ export function PipelinesPage() {
   )
 
   const createPipelineMutation = useMutation({
-    mutationFn: (payload: CreatePipelineInput) => api.createPipeline(payload, currentUser.id),
+    mutationFn: async (payload: CreatePipelineInput) => {
+      if (payload.sourceType === 'simulated') {
+        const datasetId = payload.datasetId ?? datasetsQuery.data?.[0]?.id
+        if (!datasetId) {
+          throw new Error('Choose an internal dataset for simulated pipelines.')
+        }
+        return api.createPipeline({ ...payload, datasetId }, currentUser.id)
+      }
+
+      const dataset = await api.createDataset(
+        {
+          name: buildKaggleDatasetName(payload),
+          description:
+            payload.sourceType === 'kaggle_latest'
+              ? 'Automatically created for the latest published Kaggle dataset pipeline.'
+              : payload.sourceType === 'kaggle_latest_category'
+                ? `Automatically created for the latest published Kaggle CSV dataset in ${payload.kaggleCategory}.`
+              : `Automatically created for Kaggle dataset ${payload.kaggleDatasetRef}.`,
+          owner: 'kaggle',
+          schemaVersion: 1,
+        },
+        currentUser.id,
+      )
+
+      return api.createPipeline({ ...payload, datasetId: dataset.id }, currentUser.id)
+    },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['pipelines'] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['datasets'] }),
+        queryClient.invalidateQueries({ queryKey: ['pipelines'] }),
+      ])
       setDialogOpen(false)
     },
   })
@@ -82,7 +123,7 @@ export function PipelinesPage() {
     <Stack spacing={3}>
       <PageHeader
         title="Pipelines"
-        description="Create simulated processing pipelines, toggle their active state, and trigger manual runs."
+        description="Create Kaggle EDA or simulated pipelines, schedule them with cron, and trigger manual runs."
         actions={
           can('admin') ? (
             <Button startIcon={<AddRoundedIcon />} variant="contained" onClick={() => setDialogOpen(true)}>
@@ -117,6 +158,7 @@ export function PipelinesPage() {
                 <TableCell>Pipeline</TableCell>
                 <TableCell>Dataset</TableCell>
                 <TableCell>Schedule</TableCell>
+                <TableCell>Source</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Last run</TableCell>
                 <TableCell align="right">Actions</TableCell>
@@ -140,6 +182,7 @@ export function PipelinesPage() {
                       {scheduleDetail(pipeline.schedule)}
                     </Typography>
                   </TableCell>
+                  <TableCell>{describeSource(pipeline.sourceType, pipeline.kaggleDatasetRef, pipeline.kaggleCategory)}</TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <StatusChip value={pipeline.latestRunStatus ?? 'pending'} />
@@ -201,6 +244,7 @@ export function PipelinesPage() {
       />
 
       <EditPipelineDialog
+        key={`${editingPipeline?.id ?? 'empty'}-${editingPipeline?.updatedAt ?? 'new'}`}
         open={editingPipeline !== null}
         onClose={() => setEditingPipeline(null)}
         pipeline={editingPipeline}
@@ -214,4 +258,19 @@ export function PipelinesPage() {
       />
     </Stack>
   )
+}
+
+function buildKaggleDatasetName(payload: CreatePipelineInput) {
+  const rawName =
+    payload.sourceType === 'kaggle_latest'
+      ? `kaggle-latest-${Date.now()}`
+      : payload.sourceType === 'kaggle_latest_category'
+        ? `kaggle-latest-${payload.kaggleCategory ?? 'topic'}-${Date.now()}`
+      : `kaggle-${payload.kaggleDatasetRef ?? payload.name}`
+  return rawName
+    .toLowerCase()
+    .replace(/^https?:\/\/(www\.)?kaggle\.com\/datasets\//, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 110)
 }

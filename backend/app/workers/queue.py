@@ -15,6 +15,7 @@ def get_queue():
     return Queue(settings.rq_queue_name, connection=get_redis_connection())
 
 
-def enqueue_run_processing(run_id: int) -> None:
+def enqueue_run_processing(run_id: int) -> str:
     queue = get_queue()
-    queue.enqueue("app.workers.tasks.process_run", run_id)
+    job = queue.enqueue("app.workers.tasks.process_run", run_id)
+    return job.id

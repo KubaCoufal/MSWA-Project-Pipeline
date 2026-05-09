@@ -1,73 +1,127 @@
-# React + TypeScript + Vite
+# Pipeline Monitor Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains the React frontend for the Big Data Pipeline Monitor course project. It provides the operator-facing dashboard, dataset and pipeline pages, run history, alert rule management, alert handling, and authentication UI.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React with TypeScript
+- Vite for development and production builds
+- React Router for page navigation
+- TanStack Query for API data fetching and cache invalidation
+- MUI for UI components and layout
+- Vitest and Testing Library for unit/component tests
+- Playwright for browser end-to-end tests
+- Capacitor configuration for future mobile packaging
 
-## React Compiler
+## Environment Variables
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Copy `.env.example` to `.env` for local frontend development:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cp .env.example .env
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+On Windows PowerShell:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```powershell
+Copy-Item .env.example .env
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Available variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `http://localhost:8000` | Backend API base URL used by browser requests |
+| `VITE_AUTH_MODE` | `demo` | Authentication mode: `demo` or `keycloak` |
+| `VITE_KEYCLOAK_URL` | `http://localhost:8080` | Keycloak server URL for Keycloak mode |
+| `VITE_KEYCLOAK_REALM` | `pipeline-monitor` | Keycloak realm name |
+| `VITE_KEYCLOAK_CLIENT_ID` | `pipeline-monitor-web` | Public Keycloak client ID |
+
+## Scripts
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the local development server:
+
+```bash
+npm run dev
+```
+
+Run quality checks:
+
+```bash
+npm run lint
+npm run test
+npm run build
+```
+
+Run browser end-to-end tests against the Docker Compose stack:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Preview a production build locally:
+
+```bash
+npm run build
+npm run preview
+```
+
+## Authentication Modes
+
+### Demo Mode
+
+`VITE_AUTH_MODE=demo` is the default. The UI shows a user switcher for Admin, Operator, and Viewer. API requests include the selected user's `X-Demo-User-Id` header.
+
+### Keycloak Mode
+
+`VITE_AUTH_MODE=keycloak` enables Keycloak login through `keycloak-js`. In this mode, the frontend stores the bearer token and sends it to the backend through the `Authorization` header.
+
+The easiest way to run Keycloak mode is from the repository root:
+
+```powershell
+./infra/keycloak/start-keycloak-mode.ps1
+```
+
+## Project Structure
+
+```text
+src/
+|-- api/                    API client and shared TypeScript types
+|-- app/                    Query client configuration
+|-- auth/                   Demo and Keycloak auth handling
+|-- components/             Shared layout, form, and common UI components
+|-- pages/                  Route-level pages
+|-- test/                   Vitest setup and component tests
+|-- utils/                  Formatting and schedule helpers
+|-- App.tsx                 Route definitions
+`-- main.tsx                React application entry point
+```
+
+## Mobile Packaging
+
+The frontend includes Capacitor configuration, but the generated native Android project is not committed by default.
+
+Build and sync the web application:
+
+```bash
+npm run mobile:sync
+```
+
+Generate the Android project locally the first time mobile packaging is needed:
+
+```bash
+npx cap add android
+```
+
+Open the Android project:
+
+```bash
+npm run mobile:open:android
 ```

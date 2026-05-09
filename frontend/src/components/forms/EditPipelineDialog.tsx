@@ -12,7 +12,8 @@ import {
 import { useMemo, useState } from 'react'
 
 import type { Pipeline, UpdatePipelineInput } from '../../api/types'
-import { describeSchedule } from '../../utils/schedule'
+import { cronToScheduleForm, scheduleFormToCron } from '../../utils/schedule'
+import { ScheduleControls } from './ScheduleControls'
 
 interface EditPipelineDialogProps {
   open: boolean
@@ -40,6 +41,7 @@ export function EditPipelineDialog({
   )
 
   const [formState, setFormState] = useState<UpdatePipelineInput>(initialState)
+  const [scheduleState, setScheduleState] = useState(() => cronToScheduleForm(pipeline?.schedule))
 
   return (
     <Dialog
@@ -57,14 +59,7 @@ export function EditPipelineDialog({
             value={formState.name ?? ''}
             onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
           />
-          <TextField
-            label="Schedule"
-            value={formState.schedule ?? ''}
-            onChange={(event) => setFormState((current) => ({ ...current, schedule: event.target.value }))}
-            helperText={`Cron metadata. Example: 0 2 * * * (${describeSchedule('0 2 * * *')}) or */15 * * * * (${describeSchedule(
-              '*/15 * * * *',
-            )}). Leave blank for manual-only runs.`}
-          />
+          <ScheduleControls value={scheduleState} onChange={setScheduleState} />
           <TextField
             label="Description"
             multiline
@@ -87,7 +82,7 @@ export function EditPipelineDialog({
         <Button onClick={onClose}>Cancel</Button>
         <Button
           variant="contained"
-          onClick={() => onSubmit(formState)}
+          onClick={() => onSubmit({ ...formState, schedule: scheduleFormToCron(scheduleState) })}
           disabled={loading || !formState.name?.trim()}
         >
           Save changes

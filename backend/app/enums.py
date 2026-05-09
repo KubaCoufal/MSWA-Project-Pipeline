@@ -16,6 +16,14 @@ class RunStatus(str, Enum):
     FAILED = "failed"
 
 
+class RunStepStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
 class AlertRuleType(str, Enum):
     RUN_FAILED = "run_failed"
     RUNTIME_EXCEEDED = "runtime_exceeded"

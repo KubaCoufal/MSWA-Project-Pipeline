@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from croniter import croniter
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.enums import AlertRuleType, AlertSeverity, AlertStatus, RunStatus, UserRole
+from app.enums import AlertRuleType, AlertSeverity, AlertStatus, RunStatus, RunStepStatus, UserRole
 
 
 def to_camel(value: str) -> str:
@@ -48,6 +48,9 @@ class PipelineCreate(AppSchema):
     description: str | None = None
     schedule: str | None = Field(default=None, max_length=120)
     active: bool = True
+    source_type: Literal["simulated", "kaggle_specific", "kaggle_latest", "kaggle_latest_category"] = "simulated"
+    kaggle_dataset_ref: str | None = Field(default=None, max_length=300)
+    kaggle_category: str | None = Field(default=None, max_length=120)
 
     @field_validator("schedule", mode="before")
     @classmethod
@@ -61,6 +64,22 @@ class PipelineCreate(AppSchema):
         if not croniter.is_valid(normalized):
             raise ValueError("schedule must be a valid cron expression.")
         return normalized
+
+    @field_validator("kaggle_dataset_ref", mode="before")
+    @classmethod
+    def normalize_kaggle_dataset_ref(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("kaggle_category", mode="before")
+    @classmethod
+    def normalize_kaggle_category(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
 
 class PipelineUpdate(AppSchema):
@@ -90,6 +109,9 @@ class PipelineRead(AppSchema):
     description: str | None
     schedule: str | None
     active: bool
+    source_type: str = "simulated"
+    kaggle_dataset_ref: str | None = None
+    kaggle_category: str | None = None
     current_version_number: int
     latest_run_status: RunStatus | None = None
     latest_run_started_at: datetime | None = None
@@ -106,7 +128,23 @@ class RunRead(AppSchema):
     finished_at: datetime | None
     records_processed: int
     error_message: str | None
+    eda_result: dict[str, Any] | None = None
+    rq_job_id: str | None = None
     runtime_seconds: int | None = None
+    created_at: datetime
+
+
+class RunStepRead(AppSchema):
+    id: int
+    run_id: int
+    step_order: int
+    name: str
+    status: RunStepStatus
+    started_at: datetime | None
+    finished_at: datetime | None
+    message: str | None
+    metrics: dict[str, Any] | None = None
+    error_message: str | None
     created_at: datetime
 
 

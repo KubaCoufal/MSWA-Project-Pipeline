@@ -204,6 +204,18 @@ def test_worker_processes_run_and_runtime_alert(client, admin_headers, operator_
     assert fetched_run.status_code == 200
     assert fetched_run.json()["status"] == "success"
 
+    steps_response = client.get(f"/runs/{run_id}/steps")
+    assert steps_response.status_code == 200
+    steps = steps_response.json()
+    assert [step["name"] for step in steps] == [
+        "queue_job",
+        "start_run",
+        "simulate_processing",
+        "store_result",
+        "cleanup",
+    ]
+    assert all(step["status"] == "success" for step in steps)
+
     alerts_response = client.get(f"/alerts?pipeline_id={pipeline_id}")
     assert alerts_response.status_code == 200
     assert len(alerts_response.json()) == 1

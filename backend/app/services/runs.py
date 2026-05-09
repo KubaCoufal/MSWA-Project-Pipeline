@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.enums import RunStatus
-from app.models import Pipeline, Run
+from app.models import Pipeline, PipelineVersion, Run
 from app.schemas import RunUpdate
 from app.services.alerts import evaluate_run_alerts
+from app.services.run_steps import complete_step, initialize_run_steps
 from app.workers.queue import enqueue_run_processing
 
 
@@ -75,7 +76,22 @@ def create_run(session: Session, pipeline_id: int) -> Run:
     session.add(run)
     session.commit()
     session.refresh(run)
-    enqueue_run_processing(run.id)
+
+    active_version = session.scalar(
+        select(PipelineVersion).where(
+            PipelineVersion.pipeline_id == pipeline.id,
+            PipelineVersion.version_number == run.pipeline_version_number,
+        )
+    )
+    config = active_version.config if active_version else {}
+    source_type = config.get("sourceType", config.get("mode", "simulated"))
+    initialize_run_steps(session, run.id, source_type)
+
+    job_id = enqueue_run_processing(run.id)
+    run.rq_job_id = job_id
+    complete_step(session, run.id, "queue_job", message="Run enqueued in Redis RQ.", metrics={"jobId": job_id})
+    session.commit()
+    session.refresh(run)
     return run
 
 
@@ -86,6 +102,7 @@ def apply_status_transition(
     *,
     error_message: str | None = None,
     records_processed: int | None = None,
+    eda_result: dict | None = None,
 ) -> Run:
     if next_status not in VALID_TRANSITIONS[run.status]:
         raise HTTPException(
@@ -110,6 +127,8 @@ def apply_status_transition(
         run.records_processed = (
             records_processed if records_processed is not None else max(run.records_processed, settings.default_records_processed)
         )
+        if eda_result is not None:
+            run.eda_result = eda_result
 
     evaluate_run_alerts(session, run)
     session.commit()

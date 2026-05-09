@@ -1,23 +1,94 @@
 # Big Data Pipeline Monitor
 
-Full-stack school project for simulated big data pipeline monitoring. The stack uses `FastAPI + SQLAlchemy + Alembic + RQ + Redis + Postgres` on the backend and `React + Vite + TypeScript + React Router + TanStack Query + MUI` on the frontend.
+Big Data Pipeline Monitor is a full-stack course project for observing simulated data pipeline activity. It provides dataset and pipeline metadata management, run simulation, alert rules, alert handling, role-based access control, and a dashboard for operational status.
 
-## What is included
-- Metadata management for datasets, pipelines, alert rules, and alerts
-- Simulated pipeline run lifecycle with a separate worker container
-- Dashboard, list/detail pages, quick alert handling, pipeline edit controls, and mobile-friendly responsive UI
-- Demo auth boundary with an optional Keycloak mode behind the same frontend/backend auth contract
-- Docker Compose setup for `frontend`, `backend`, `worker`, `postgres`, `redis`, and optional `keycloak`
-- Rich seeded simulation data plus a fake cron-based scheduler for demo activity
-- Unit, integration, smoke, and browser end-to-end test coverage
+The project is intentionally self-contained so it can be evaluated locally with Docker Compose. The default mode starts the application with seeded demo data and demo users; an optional Keycloak profile demonstrates external identity-provider integration.
 
-## Demo users
-- `Admin` (`X-Demo-User-Id: 1`): full metadata management and run control
-- `Operator` (`X-Demo-User-Id: 2`): run control and alert handling
-- `Viewer` (`X-Demo-User-Id: 3`): read-only access
+## Features
 
-## Local development
-### Backend
+- Dashboard summary for pipeline health, recent runs, open alerts, and throughput.
+- Management workflows for datasets, pipelines, alert rules, and alert events.
+- Simulated or Kaggle-backed pipeline execution using a separate worker process and Redis queue.
+- Cron-based schedule metadata with a fake scheduler for demo activity.
+- Role-based permissions for admin, operator, and viewer workflows.
+- Optional Keycloak authentication mode using the same frontend/backend auth contract.
+- Automated backend, frontend, smoke, and browser end-to-end test coverage.
+- Docker Compose orchestration for the complete stack.
+
+## Architecture
+
+| Area | Technology |
+| --- | --- |
+| Frontend | React, Vite, TypeScript, React Router, TanStack Query, MUI |
+| Backend API | FastAPI, Pydantic, SQLAlchemy |
+| Database | PostgreSQL in Docker, SQLite fallback for local tests |
+| Migrations | Alembic |
+| Background work | Redis Queue (RQ) with Redis |
+| Authentication | Demo header auth by default, optional Keycloak |
+| Testing | Pytest, Vitest, Playwright, API smoke test |
+| Packaging | Docker, Docker Compose, Capacitor-ready frontend |
+
+## Quick Start
+
+Prerequisites:
+
+- Docker Desktop with Docker Compose
+- Python 3.12 or newer for local backend development and smoke tests
+- Node.js 22 or newer for local frontend development
+
+Start the full demo stack:
+
+```bash
+docker compose up --build
+```
+
+Default service URLs:
+
+- Frontend: `http://localhost:4173`
+- Backend API: `http://localhost:8000`
+- Backend OpenAPI docs: `http://localhost:8000/docs`
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+
+The default Docker setup uses demo authentication and automatically seeds sample datasets, pipelines, runs, alert rules, alerts, and users.
+
+To enable Kaggle EDA pipelines, create a root `.env` file next to `docker-compose.yml` with backend-only Kaggle credentials:
+
+```env
+KAGGLE_USERNAME=your-kaggle-username
+KAGGLE_KEY=your-kaggle-api-key
+KAGGLE_MAX_DOWNLOAD_MB=50
+```
+
+Kaggle pipelines can analyze a specific Kaggle dataset URL/slug or request the latest published CSV dataset within the configured size limit. Simulated pipelines remain available for demos without Kaggle credentials.
+
+## Demo Accounts
+
+In demo mode, the frontend allows switching between these users. API requests identify the selected user through the `X-Demo-User-Id` header.
+
+| User | Header value | Role | Permissions |
+| --- | --- | --- | --- |
+| Admin | `X-Demo-User-Id: 1` | `admin` | Full metadata management, run control, and alert handling |
+| Operator | `X-Demo-User-Id: 2` | `operator` | Start/update runs and handle alerts |
+| Viewer | `X-Demo-User-Id: 3` | `viewer` | Read-only access |
+
+## Suggested Demo Flow
+
+This flow shows the main project behavior in a few minutes:
+
+1. Open `http://localhost:4173`.
+2. Review the dashboard summary, recent runs, and active alerts.
+3. Switch between Admin, Operator, and Viewer to demonstrate role-based UI behavior.
+4. As Admin, create a dataset and pipeline.
+5. Create an alert rule for the new pipeline.
+6. Start a pipeline run and wait for the worker to complete it.
+7. Open the generated alert and acknowledge or resolve it.
+8. Visit `http://localhost:8000/docs` to inspect the backend API contract.
+
+## Local Development
+
+Backend:
+
 ```bash
 cd backend
 python -m pip install -e .[dev]
@@ -25,7 +96,8 @@ python -m pytest
 uvicorn app.main:app --reload
 ```
 
-### Frontend
+Frontend:
+
 ```bash
 cd frontend
 npm install
@@ -35,32 +107,27 @@ npm run build
 npm run dev
 ```
 
-## Docker Compose
-### Default demo mode
-```bash
-docker compose up --build
-```
+For service-specific setup, scripts, and environment variables, see [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
 
-Services:
-- Frontend: `http://localhost:4173`
-- Backend API: `http://localhost:8000`
-- Postgres: `localhost:5432`
-- Redis: `localhost:6379`
+## Keycloak Mode
 
-### Keycloak mode
+The project includes an optional Keycloak profile for testing bearer-token authentication.
+
 PowerShell helper:
+
 ```powershell
 ./infra/keycloak/start-keycloak-mode.ps1
 ```
 
 Manual command:
+
 ```powershell
 $env:AUTH_MODE="keycloak"
-$env:VITE_AUTH_MODE="keycloak"
 docker compose --profile keycloak up --build -d
 ```
 
-Default imported Keycloak realm settings:
+Default imported Keycloak settings:
+
 - Realm: `pipeline-monitor`
 - Client: `pipeline-monitor-web`
 - Admin console: `http://localhost:8080`
@@ -69,43 +136,38 @@ Default imported Keycloak realm settings:
   - `admin / admin123`
   - `operator / operator123`
   - `viewer / viewer123`
-  - `user01 / user01123` (`GeneralUser`, basic read-only access)
+  - `user01 / user01123`
 
-The frontend picks its auth mode from `VITE_AUTH_MODE`, while the backend uses `AUTH_MODE`. Demo mode stays the default.
-In Keycloak mode, the frontend uses `login-required`, and every application API route requires a bearer token. Only `/health` stays public so Docker health checks keep working.
+In Keycloak mode, all application API routes require a bearer token. The `/health` endpoint remains public for Docker health checks.
 
-## Schedule metadata
-Pipeline schedules use standard cron expressions and drive the fake scheduler in demo mode.
+### Persisting Keycloak Changes
 
-Examples:
-- `0 2 * * *` = every day at `02:00` UTC
-- `30 3 * * *` = every day at `03:30` UTC
-- `0 */6 * * *` = every 6 hours, on the hour
-- `*/15 * * * *` = every 15 minutes
+Keycloak state is persisted in two ways:
 
-The scheduler is simulated only. It checks active pipelines with a schedule, creates any missing due run, and hands it to the worker queue. It does not try to be a production-grade orchestration system.
+- Docker volume `keycloak_data` keeps UI-created users, roles, and groups across local restarts.
+- [infra/keycloak/pipeline-monitor-realm.json](infra/keycloak/pipeline-monitor-realm.json) stores the Git-managed realm import/export.
 
-## Persisting Keycloak users and roles
-This repo now supports two layers of persistence for Keycloak:
-
-1. Local Docker persistence:
-- Keycloak stores its current state in the named volume `keycloak_data`
-- UI-created users, groups, and roles survive container restarts
-
-2. Git-managed realm persistence:
-- The import/export file is [infra/keycloak/pipeline-monitor-realm.json](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/infra/keycloak/pipeline-monitor-realm.json)
-- Commit this file if you want teammates to get the same users, roles, and groups
-
-If you create users in the Keycloak UI and want to persist them back into git, run:
+After changing users or roles in the Keycloak UI, export the realm back into the repository:
 
 ```powershell
 ./infra/keycloak/export-realm.ps1
 ```
 
-That exports the current realm, including users, back into `infra/keycloak/pipeline-monitor-realm.json`.
+## Schedule Simulation
+
+Pipeline schedules use standard cron expressions:
+
+- `0 2 * * *` means every day at `02:00` UTC.
+- `30 3 * * *` means every day at `03:30` UTC.
+- `0 */6 * * *` means every 6 hours.
+- `*/15 * * * *` means every 15 minutes.
+
+The scheduler is intentionally simulated. It checks active pipelines with schedules, creates any missing due run, and sends it to the worker queue. It is designed for project demonstration rather than production orchestration.
 
 ## Testing
-### Backend and frontend suites
+
+Backend and frontend checks:
+
 ```bash
 cd backend
 python -m pytest
@@ -116,17 +178,15 @@ npm run test
 npm run build
 ```
 
-### API smoke test
-After the compose stack is running:
+API smoke test, after the Docker stack is running:
 
 ```bash
 python infra/smoke_test.py
 ```
 
-The script creates a dataset, pipeline, runtime alert rule, starts a run, waits for worker completion, and verifies that an alert is raised.
+The smoke test creates a dataset, pipeline, runtime alert rule, starts a run, waits for worker completion, and verifies that an alert is raised.
 
-### Browser end-to-end test
-With the compose stack running in demo mode:
+Browser end-to-end test, after the Docker stack is running in demo mode:
 
 ```bash
 cd frontend
@@ -134,15 +194,28 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The Playwright flow creates a dataset, pipeline, alert rule, starts a run, and acknowledges the resulting alert from the UI.
+The Playwright flow creates a dataset, pipeline, and alert rule, starts a run, and acknowledges the resulting alert through the UI.
 
-## Mobile packaging
-The frontend is configured for Capacitor-based packaging later. The repo includes:
-- `frontend/capacitor.config.ts`
-- `frontend/.env.example`
-- npm scripts for `mobile:copy`, `mobile:sync`, and `mobile:open:android`
+## Continuous Integration
 
-Typical next step:
+GitHub Actions CI is defined in [.github/workflows/ci.yml](.github/workflows/ci.yml). It runs:
+
+- Backend Pytest suite
+- Frontend lint, unit tests, and production build
+- Docker Compose smoke test
+- Playwright browser end-to-end test
+
+## Mobile Packaging
+
+The frontend is configured for future Capacitor packaging. Included files and scripts:
+
+- [frontend/capacitor.config.ts](frontend/capacitor.config.ts)
+- [frontend/.env.example](frontend/.env.example)
+- `npm run mobile:copy`
+- `npm run mobile:sync`
+- `npm run mobile:open:android`
+
+To sync the web build into a Capacitor project:
 
 ```bash
 cd frontend
@@ -150,21 +223,35 @@ npm install
 npm run mobile:sync
 ```
 
-If you want a full Android project generated locally, run `npx cap add android` once on your machine.
+To generate a local Android project for the first time:
 
-## Continuous integration
-GitHub Actions CI is defined in [.github/workflows/ci.yml](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/.github/workflows/ci.yml). It runs:
-- backend tests
-- frontend lint, tests, and production build
-- Docker Compose smoke test
-- Playwright browser end-to-end test
+```bash
+npx cap add android
+```
 
-## Project layout
-- [backend/app/main.py](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/backend/app/main.py)
-- [backend/app/core/security.py](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/backend/app/core/security.py)
-- [frontend/src/App.tsx](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/frontend/src/App.tsx)
-- [frontend/src/auth/AuthContext.tsx](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/frontend/src/auth/AuthContext.tsx)
-- [frontend/playwright.config.ts](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/frontend/playwright.config.ts)
-- [frontend/capacitor.config.ts](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/frontend/capacitor.config.ts)
-- [infra/keycloak/pipeline-monitor-realm.json](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/infra/keycloak/pipeline-monitor-realm.json)
-- [docker-compose.yml](/c:/Users/coufa/Documents/GitHub/MSWA-Project-Pipeline/docker-compose.yml)
+## Repository Layout
+
+```text
+.
+|-- backend/                 FastAPI application, models, migrations, tests
+|-- frontend/                React/Vite application, UI tests, Playwright tests
+|-- infra/                   Smoke test and Keycloak helper scripts
+|-- .github/workflows/       Continuous integration workflow
+|-- docker-compose.yml       Full local application stack
+`-- README.md                Project overview and evaluation guide
+```
+
+Important entry points:
+
+- [backend/app/main.py](backend/app/main.py)
+- [backend/README.md](backend/README.md)
+- [backend/app/core/security.py](backend/app/core/security.py)
+- [frontend/README.md](frontend/README.md)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/auth/AuthContext.tsx](frontend/src/auth/AuthContext.tsx)
+- [frontend/playwright.config.ts](frontend/playwright.config.ts)
+- [docker-compose.yml](docker-compose.yml)
+
+## Project Scope
+
+This project simulates a monitoring environment. Pipeline runs, schedules, and alert generation are implemented to demonstrate monitoring workflows, queue processing, API design, role-based access, and frontend state management. It does not connect to a real external big data platform.

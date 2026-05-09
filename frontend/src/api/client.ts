@@ -8,6 +8,7 @@ import type {
   Dataset,
   Pipeline,
   Run,
+  RunStep,
   UpdateAlertInput,
   UpdatePipelineInput,
   UpdateRunInput,
@@ -87,6 +88,7 @@ export const api = {
   getRuns: (filters: { pipelineId?: number; status?: string } = {}) =>
     apiFetch<Run[]>(`/runs${buildQuery(filters)}`),
   getRun: (runId: number) => apiFetch<Run>(`/runs/${runId}`),
+  getRunSteps: (runId: number) => apiFetch<RunStep[]>(`/runs/${runId}/steps`),
   updateRun: (runId: number, payload: UpdateRunInput, userId: number) =>
     apiFetch<Run>(`/runs/${runId}`, { method: 'PATCH', body: JSON.stringify(payload) }, userId),
 

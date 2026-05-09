@@ -28,6 +28,19 @@ import { EditPipelineDialog } from '../components/forms/EditPipelineDialog'
 import { formatDateTime, formatDuration } from '../utils/format'
 import { describeSchedule, scheduleDetail } from '../utils/schedule'
 
+function describeSource(sourceType: string, kaggleDatasetRef?: string | null, kaggleCategory?: string | null) {
+  if (sourceType === 'kaggle_latest') {
+    return 'Latest published Kaggle CSV dataset'
+  }
+  if (sourceType === 'kaggle_latest_category') {
+    return `Latest published Kaggle CSV dataset in ${kaggleCategory ?? 'selected topic'}`
+  }
+  if (sourceType === 'kaggle_specific') {
+    return kaggleDatasetRef ?? 'Specific Kaggle dataset'
+  }
+  return 'Simulated processing run'
+}
+
 export function PipelineDetailPage() {
   const params = useParams()
   const pipelineId = Number(params.pipelineId)
@@ -101,7 +114,7 @@ export function PipelineDetailPage() {
     <Stack spacing={3}>
       <PageHeader
         title={pipeline.name}
-        description={pipeline.description || 'Simulated processing pipeline with manual run support.'}
+        description={pipeline.description || 'Pipeline with manual and scheduled run support.'}
         actions={
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
             {can('admin') && (
@@ -157,6 +170,9 @@ export function PipelineDetailPage() {
             </Typography>
             <Typography>
               <strong>Schedule:</strong> {describeSchedule(pipeline.schedule)}
+            </Typography>
+            <Typography>
+              <strong>Source:</strong> {describeSource(pipeline.sourceType, pipeline.kaggleDatasetRef, pipeline.kaggleCategory)}
             </Typography>
             <Typography color="text.secondary">
               <strong>Cron:</strong> {scheduleDetail(pipeline.schedule)}
@@ -279,6 +295,7 @@ export function PipelineDetailPage() {
       </Box>
 
       <EditPipelineDialog
+        key={`${pipeline.id}-${pipeline.updatedAt}`}
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         pipeline={pipeline}

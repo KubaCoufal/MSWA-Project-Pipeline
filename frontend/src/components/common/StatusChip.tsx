@@ -1,14 +1,15 @@
 import { Chip } from '@mui/material'
 
-import type { AlertSeverity, AlertStatus, RunStatus } from '../../api/types'
+import type { AlertSeverity, AlertStatus, RunStatus, RunStepStatus } from '../../api/types'
 
-type StatusValue = RunStatus | AlertSeverity | AlertStatus
+type StatusValue = RunStatus | RunStepStatus | AlertSeverity | AlertStatus
 
 const colorMap: Record<StatusValue, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
   pending: 'warning',
   running: 'info',
   success: 'success',
   failed: 'error',
+  skipped: 'default',
   low: 'default',
   medium: 'warning',
   high: 'error',

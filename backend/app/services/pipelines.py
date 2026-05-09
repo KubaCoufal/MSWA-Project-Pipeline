@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models import Dataset, Pipeline, PipelineVersion, Run
 from app.schemas import PipelineCreate, PipelineRead, PipelineUpdate
+from app.services.kaggle_eda import normalize_dataset_ref
 
 
 def _latest_run_for_pipeline(session: Session, pipeline_id: int) -> Run | None:
@@ -17,6 +18,7 @@ def _latest_run_for_pipeline(session: Session, pipeline_id: int) -> Run | None:
 
 def serialize_pipeline(session: Session, pipeline: Pipeline) -> PipelineRead:
     active_version = next((version for version in pipeline.versions if version.active), None)
+    config = active_version.config if active_version else {}
     latest_run = _latest_run_for_pipeline(session, pipeline.id)
     return PipelineRead(
         id=pipeline.id,
@@ -25,6 +27,9 @@ def serialize_pipeline(session: Session, pipeline: Pipeline) -> PipelineRead:
         description=pipeline.description,
         schedule=pipeline.schedule,
         active=pipeline.active,
+        source_type=config.get("sourceType", config.get("mode", "simulated")),
+        kaggle_dataset_ref=config.get("kaggleDatasetRef"),
+        kaggle_category=config.get("kaggleCategory"),
         current_version_number=active_version.version_number if active_version else 1,
         latest_run_status=latest_run.status if latest_run else None,
         latest_run_started_at=latest_run.started_at if latest_run else None,
@@ -37,6 +42,15 @@ def create_pipeline(session: Session, payload: PipelineCreate) -> Pipeline:
     dataset = session.get(Dataset, payload.dataset_id)
     if dataset is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset was not found.")
+
+    kaggle_dataset_ref = payload.kaggle_dataset_ref
+    if payload.source_type == "kaggle_specific":
+        if kaggle_dataset_ref is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A Kaggle dataset URL or slug is required.")
+        kaggle_dataset_ref = normalize_dataset_ref(kaggle_dataset_ref)
+    kaggle_category = payload.kaggle_category
+    if payload.source_type == "kaggle_latest_category" and kaggle_category is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A Kaggle topic or category is required.")
 
     pipeline = Pipeline(
         dataset_id=payload.dataset_id,
@@ -53,7 +67,13 @@ def create_pipeline(session: Session, payload: PipelineCreate) -> Pipeline:
             pipeline_id=pipeline.id,
             version_number=1,
             active=True,
-            config={"mode": "simulated", "runtimeSeconds": settings.simulation_runtime_seconds},
+            config={
+                "sourceType": payload.source_type,
+                "mode": payload.source_type,
+                "runtimeSeconds": settings.simulation_runtime_seconds,
+                "kaggleDatasetRef": kaggle_dataset_ref,
+                "kaggleCategory": kaggle_category,
+            },
         )
     )
     session.commit()

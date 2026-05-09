@@ -6,7 +6,7 @@ from sqlalchemy import JSON, Boolean, DateTime, Enum as SqlEnum, ForeignKey, Int
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
-from app.enums import AlertRuleType, AlertSeverity, AlertStatus, RunStatus, UserRole
+from app.enums import AlertRuleType, AlertSeverity, AlertStatus, RunStatus, RunStepStatus, UserRole
 
 
 class User(Base):
@@ -85,10 +85,35 @@ class Run(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     records_processed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    eda_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    rq_job_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     pipeline: Mapped[Pipeline] = relationship(back_populates="runs")
     alerts: Mapped[list["Alert"]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    steps: Mapped[list["RunStep"]] = relationship(back_populates="run", cascade="all, delete-orphan")
+
+
+class RunStep(Base):
+    __tablename__ = "run_steps"
+    __table_args__ = (UniqueConstraint("run_id", "step_order", name="uq_run_steps_order"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id", ondelete="CASCADE"), index=True, nullable=False)
+    step_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[RunStepStatus] = mapped_column(
+        SqlEnum(RunStepStatus, name="run_step_status", native_enum=False),
+        nullable=False,
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metrics: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    run: Mapped[Run] = relationship(back_populates="steps")
 
 
 class AlertRule(Base):

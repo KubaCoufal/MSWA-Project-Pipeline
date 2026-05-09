@@ -68,7 +68,7 @@ test('admin can edit pipeline metadata from the list page', async () => {
 
   fireEvent.click(await screen.findByRole('button', { name: 'Edit daily-aggregation' }))
   fireEvent.change(screen.getByLabelText('Pipeline name'), { target: { value: 'daily-aggregation-v2' } })
-  fireEvent.change(screen.getByLabelText('Schedule'), { target: { value: '0 4 * * *' } })
+  fireEvent.change(screen.getByDisplayValue('02:00'), { target: { value: '04:00' } })
   fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Updated description' } })
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
