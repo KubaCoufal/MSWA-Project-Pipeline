@@ -51,6 +51,7 @@ class PipelineCreate(AppSchema):
     source_type: Literal["simulated", "kaggle_specific", "kaggle_latest", "kaggle_latest_category"] = "simulated"
     kaggle_dataset_ref: str | None = Field(default=None, max_length=300)
     kaggle_category: str | None = Field(default=None, max_length=120)
+    kaggle_dataset: str | None = Field(default=None, max_length=200)
 
     @field_validator("schedule", mode="before")
     @classmethod
@@ -81,12 +82,26 @@ class PipelineCreate(AppSchema):
         normalized = value.strip()
         return normalized or None
 
+    @field_validator("kaggle_dataset", mode="before")
+    @classmethod
+    def validate_kaggle_dataset(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        parts = normalized.split("/")
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise ValueError("kaggleDataset must be in 'owner/dataset-name' format.")
+        return normalized
+
 
 class PipelineUpdate(AppSchema):
     name: str | None = Field(default=None, min_length=2, max_length=120)
     description: str | None = None
     schedule: str | None = Field(default=None, max_length=120)
     active: bool | None = None
+    kaggle_dataset: str | None = Field(default=None, max_length=200)
 
     @field_validator("schedule", mode="before")
     @classmethod
@@ -101,6 +116,19 @@ class PipelineUpdate(AppSchema):
             raise ValueError("schedule must be a valid cron expression.")
         return normalized
 
+    @field_validator("kaggle_dataset", mode="before")
+    @classmethod
+    def validate_kaggle_dataset(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        parts = normalized.split("/")
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise ValueError("kaggleDataset must be in 'owner/dataset-name' format.")
+        return normalized
+
 
 class PipelineRead(AppSchema):
     id: int
@@ -112,6 +140,7 @@ class PipelineRead(AppSchema):
     source_type: str = "simulated"
     kaggle_dataset_ref: str | None = None
     kaggle_category: str | None = None
+    kaggle_dataset: str | None = None
     current_version_number: int
     latest_run_status: RunStatus | None = None
     latest_run_started_at: datetime | None = None
@@ -130,6 +159,7 @@ class RunRead(AppSchema):
     error_message: str | None
     eda_result: dict[str, Any] | None = None
     rq_job_id: str | None = None
+    report: dict | None = None
     runtime_seconds: int | None = None
     created_at: datetime
 

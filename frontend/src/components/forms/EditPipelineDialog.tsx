@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react'
 
 import type { Pipeline, UpdatePipelineInput } from '../../api/types'
 import { cronToScheduleForm, scheduleFormToCron } from '../../utils/schedule'
+import { KaggleDatasetField } from './KaggleDatasetField'
 import { ScheduleControls } from './ScheduleControls'
 
 interface EditPipelineDialogProps {
@@ -36,6 +37,7 @@ export function EditPipelineDialog({
       description: pipeline?.description ?? '',
       schedule: pipeline?.schedule ?? '',
       active: pipeline?.active ?? true,
+      kaggleDataset: pipeline?.kaggleDataset ?? pipeline?.kaggleDatasetRef ?? '',
     }),
     [pipeline],
   )
@@ -60,6 +62,12 @@ export function EditPipelineDialog({
             onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
           />
           <ScheduleControls value={scheduleState} onChange={setScheduleState} />
+          {pipeline?.sourceType === 'kaggle_specific' && (
+            <KaggleDatasetField
+              value={formState.kaggleDataset ?? ''}
+              onChange={(value) => setFormState((current) => ({ ...current, kaggleDataset: value }))}
+            />
+          )}
           <TextField
             label="Description"
             multiline

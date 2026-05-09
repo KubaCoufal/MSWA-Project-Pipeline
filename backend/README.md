@@ -39,11 +39,19 @@ Local API URLs:
 - OpenAPI docs: `http://localhost:8000/docs`
 - ReDoc docs: `http://localhost:8000/redoc`
 
-For the complete application, including PostgreSQL, Redis, frontend, and worker process, run Docker Compose from the repository root:
+For the complete application, including PostgreSQL, Redis, frontend, backend load balancer, worker process, and scheduler, run Docker Compose from the repository root:
 
 ```bash
 docker compose up --build
 ```
+
+To demonstrate horizontal scaling, run multiple API and worker replicas:
+
+```bash
+docker compose up --build --scale backend=2 --scale worker=3
+```
+
+The public backend URL remains `http://localhost:8000`; Nginx forwards API requests to the backend replicas. Pipeline runs are claimed by the worker replicas through Redis/RQ.
 
 ## Main Endpoints
 

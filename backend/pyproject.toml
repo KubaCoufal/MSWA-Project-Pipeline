@@ -20,6 +20,8 @@ dependencies = [
   "rq>=2.5.0",
   "sqlalchemy>=2.0.40",
   "uvicorn[standard]>=0.35.0",
+  "kaggle>=1.7.0",
+  "pandas>=2.2.0",
 ]
 
 [project.optional-dependencies]

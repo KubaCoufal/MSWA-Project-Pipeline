@@ -49,6 +49,7 @@ export interface Pipeline {
   sourceType: PipelineSourceType | string
   kaggleDatasetRef: string | null
   kaggleCategory: string | null
+  kaggleDataset: string | null
   currentVersionNumber: number
   latestRunStatus: RunStatus | null
   latestRunStartedAt: string | null
@@ -65,6 +66,7 @@ export interface CreatePipelineInput {
   sourceType: PipelineSourceType
   kaggleDatasetRef?: string
   kaggleCategory?: string
+  kaggleDataset?: string
 }
 
 export interface UpdatePipelineInput {
@@ -72,6 +74,34 @@ export interface UpdatePipelineInput {
   description?: string
   schedule?: string
   active?: boolean
+  kaggleDataset?: string
+}
+
+export interface RunReportStat {
+  count: number
+  mean: number
+  std: number
+  min: number
+  p25: number
+  p50: number
+  p75: number
+  max: number
+}
+
+export interface RunReportTrendPoint {
+  date: string
+  value: number
+  rolling7d: number
+}
+
+export interface RunReport {
+  dataset: string
+  file: string
+  rowCount: number
+  columns: string[]
+  numericColumns: string[]
+  stats: Record<string, RunReportStat>
+  trend: RunReportTrendPoint[]
 }
 
 export interface Run {
@@ -85,6 +115,7 @@ export interface Run {
   errorMessage: string | null
   edaResult: EdaResult | null
   rqJobId: string | null
+  report: RunReport | null
   runtimeSeconds: number | null
   createdAt: string
 }
@@ -163,4 +194,13 @@ export interface AlertEvent {
 
 export interface UpdateAlertInput {
   status: AlertStatus
+}
+
+export interface KaggleDatasetResult {
+  ref: string
+  title: string
+  ownerName: string
+  totalBytes: number
+  downloadCount: number
+  lastUpdated: string | null
 }

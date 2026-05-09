@@ -30,6 +30,7 @@ def serialize_pipeline(session: Session, pipeline: Pipeline) -> PipelineRead:
         source_type=config.get("sourceType", config.get("mode", "simulated")),
         kaggle_dataset_ref=config.get("kaggleDatasetRef"),
         kaggle_category=config.get("kaggleCategory"),
+        kaggle_dataset=pipeline.kaggle_dataset,
         current_version_number=active_version.version_number if active_version else 1,
         latest_run_status=latest_run.status if latest_run else None,
         latest_run_started_at=latest_run.started_at if latest_run else None,
@@ -43,13 +44,16 @@ def create_pipeline(session: Session, payload: PipelineCreate) -> Pipeline:
     if dataset is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset was not found.")
 
-    kaggle_dataset_ref = payload.kaggle_dataset_ref
-    if payload.source_type == "kaggle_specific":
+    source_type = payload.source_type
+    kaggle_dataset_ref = payload.kaggle_dataset_ref or payload.kaggle_dataset
+    if payload.kaggle_dataset and payload.source_type == "simulated":
+        source_type = "kaggle_specific"
+    if source_type == "kaggle_specific":
         if kaggle_dataset_ref is None:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A Kaggle dataset URL or slug is required.")
         kaggle_dataset_ref = normalize_dataset_ref(kaggle_dataset_ref)
     kaggle_category = payload.kaggle_category
-    if payload.source_type == "kaggle_latest_category" and kaggle_category is None:
+    if source_type == "kaggle_latest_category" and kaggle_category is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A Kaggle topic or category is required.")
 
     pipeline = Pipeline(
@@ -58,6 +62,7 @@ def create_pipeline(session: Session, payload: PipelineCreate) -> Pipeline:
         description=payload.description,
         schedule=payload.schedule,
         active=payload.active,
+        kaggle_dataset=kaggle_dataset_ref,
     )
     session.add(pipeline)
     session.flush()
@@ -68,8 +73,8 @@ def create_pipeline(session: Session, payload: PipelineCreate) -> Pipeline:
             version_number=1,
             active=True,
             config={
-                "sourceType": payload.source_type,
-                "mode": payload.source_type,
+                "sourceType": source_type,
+                "mode": source_type,
                 "runtimeSeconds": settings.simulation_runtime_seconds,
                 "kaggleDatasetRef": kaggle_dataset_ref,
                 "kaggleCategory": kaggle_category,
@@ -89,6 +94,16 @@ def update_pipeline(session: Session, pipeline_id: int, payload: PipelineUpdate)
     changes = payload.model_dump(exclude_unset=True)
     for field, value in changes.items():
         setattr(pipeline, field, value)
+
+    if "kaggle_dataset" in changes:
+        active_version = next((version for version in pipeline.versions if version.active), None)
+        if active_version is not None:
+            config = dict(active_version.config)
+            config["kaggleDatasetRef"] = changes["kaggle_dataset"]
+            if changes["kaggle_dataset"]:
+                config["sourceType"] = "kaggle_specific"
+                config["mode"] = "kaggle_specific"
+            active_version.config = config
 
     session.commit()
     session.refresh(pipeline)

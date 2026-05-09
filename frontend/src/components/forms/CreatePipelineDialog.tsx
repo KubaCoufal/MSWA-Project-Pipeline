@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react'
 
 import type { CreatePipelineInput, Dataset } from '../../api/types'
 import { defaultScheduleFormState, scheduleFormToCron } from '../../utils/schedule'
+import { KaggleDatasetField } from './KaggleDatasetField'
 import { ScheduleControls } from './ScheduleControls'
 
 interface CreatePipelineDialogProps {
@@ -42,6 +43,7 @@ export function CreatePipelineDialog({
       sourceType: 'kaggle_latest_category',
       kaggleDatasetRef: '',
       kaggleCategory: 'computer science',
+      kaggleDataset: '',
     }),
     [],
   )
@@ -101,11 +103,15 @@ export function CreatePipelineDialog({
             </TextField>
           )}
           {formState.sourceType === 'kaggle_specific' && (
-            <TextField
-              label="Kaggle dataset link or slug"
-              value={formState.kaggleDatasetRef ?? ''}
-              onChange={(event) => setFormState((current) => ({ ...current, kaggleDatasetRef: event.target.value }))}
-              helperText="Use a Kaggle dataset URL or owner/dataset slug, for example uciml/iris."
+            <KaggleDatasetField
+              value={formState.kaggleDatasetRef ?? formState.kaggleDataset ?? ''}
+              onChange={(value) =>
+                setFormState((current) => ({
+                  ...current,
+                  kaggleDatasetRef: value,
+                  kaggleDataset: value,
+                }))
+              }
             />
           )}
           {formState.sourceType === 'kaggle_latest_category' && (

@@ -25,37 +25,65 @@ services:
     ports:
       - "6379:6379"
 
+  backend-migrate:
+    build:
+      context: ./backend
+    image: pipeline-monitor-backend:local
+    environment:
+      DATABASE_URL: postgresql+psycopg://pipeline:pipeline@postgres:5432/pipeline_monitor
+      REDIS_URL: redis://redis:6379/0
+      SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-true}
+      FAKE_SCHEDULER_ENABLED: ${FAKE_SCHEDULER_ENABLED:-true}
+    command: >
+      sh -c "python -m alembic upgrade head &&
+      python -m app.management.init_db"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend
+    image: pipeline-monitor-backend:local
     environment:
       DATABASE_URL: postgresql+psycopg://pipeline:pipeline@postgres:5432/pipeline_monitor
       REDIS_URL: redis://redis:6379/0
       SIMULATION_RUNTIME_SECONDS: 2
       DEFAULT_RECORDS_PROCESSED: 1200
       AUTH_MODE: ${AUTH_MODE:-demo}
-      SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-true}
-      FAKE_SCHEDULER_ENABLED: ${FAKE_SCHEDULER_ENABLED:-true}
+      SEED_DEMO_CONTENT: false
+      FAKE_SCHEDULER_ENABLED: false
       KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL:-http://keycloak:8080}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-pipeline-monitor}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-pipeline-monitor-web}
       KAGGLE_USERNAME: ${KAGGLE_USERNAME:-}
       KAGGLE_KEY: ${KAGGLE_KEY:-}
       KAGGLE_MAX_DOWNLOAD_MB: ${KAGGLE_MAX_DOWNLOAD_MB:-50}
-    command: >
-      sh -c "python -m alembic upgrade head &&
-      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      backend-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
+    expose:
+      - "8000"
+
+  backend-lb:
+    image: nginx:1.27-alpine
+    depends_on:
+      backend:
+        condition: service_started
     ports:
       - "8000:8000"
+    volumes:
+      - ./infra/nginx/backend-lb.conf:/etc/nginx/nginx.conf:ro
 
   worker:
     build:
       context: ./backend
+    image: pipeline-monitor-backend:local
     environment:
       DATABASE_URL: postgresql+psycopg://pipeline:pipeline@postgres:5432/pipeline_monitor
       REDIS_URL: redis://redis:6379/0
@@ -66,8 +94,24 @@ services:
       KAGGLE_MAX_DOWNLOAD_MB: ${KAGGLE_MAX_DOWNLOAD_MB:-50}
     command: ["python", "-m", "app.workers.worker"]
     depends_on:
-      postgres:
+      backend-migrate:
+        condition: service_completed_successfully
+      redis:
         condition: service_healthy
+
+  scheduler:
+    build:
+      context: ./backend
+    image: pipeline-monitor-backend:local
+    environment:
+      DATABASE_URL: postgresql+psycopg://pipeline:pipeline@postgres:5432/pipeline_monitor
+      REDIS_URL: redis://redis:6379/0
+      FAKE_SCHEDULER_ENABLED: ${FAKE_SCHEDULER_ENABLED:-true}
+      FAKE_SCHEDULER_POLL_SECONDS: ${FAKE_SCHEDULER_POLL_SECONDS:-30}
+    command: ["python", "-m", "app.management.scheduler"]
+    depends_on:
+      backend-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -81,7 +125,7 @@ services:
         VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-pipeline-monitor}
         VITE_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-pipeline-monitor-web}
     depends_on:
-      backend:
+      backend-lb:
         condition: service_started
     ports:
       - "4173:80"

@@ -193,240 +193,250 @@ export function RunDetailPage() {
         </Paper>
       </Box>
 
-      <Paper sx={{ p: 2.5 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2}
-          sx={{ alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between', mb: 2 }}
-        >
-          <Box>
-            <Typography variant="h6">Pipeline steps</Typography>
-            <Typography color="text.secondary">
-              Redis queues the run, the worker executes each stage, and the database records progress for monitoring.
-            </Typography>
-          </Box>
-          <Box sx={{ minWidth: { xs: '100%', md: 240 } }}>
-            <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.75 }}>
-              <Typography variant="body2" color="text.secondary">
-                Progress
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                {progress}%
-              </Typography>
-            </Stack>
-            <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 999 }} />
-          </Box>
-        </Stack>
-        {stepsQuery.isError ? (
-          <Alert severity="error">{stepsQuery.error.message}</Alert>
-        ) : (
-          <Stack spacing={2}>
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 1.5,
-                gridTemplateColumns: {
-                  xs: 'repeat(1, minmax(0, 1fr))',
-                  md: 'repeat(2, minmax(0, 1fr))',
-                  xl: 'repeat(4, minmax(0, 1fr))',
-                },
-              }}
-            >
-              {steps.map((step) => {
-                const copy = stepCopy(step.name)
-                const Icon = copy.Icon
-                return (
-                  <Box
-                    key={step.id}
-                    sx={{
-                      border: '1px solid',
-                      borderColor:
-                        step.status === 'failed'
-                          ? 'error.light'
-                          : step.status === 'running'
-                            ? 'info.light'
-                            : 'divider',
-                      borderRadius: 2,
-                      p: 1.75,
-                      minHeight: 150,
-                      bgcolor:
-                        step.status === 'failed'
-                          ? 'rgba(183,58,58,0.06)'
-                          : step.status === 'running'
-                            ? 'rgba(2,132,199,0.06)'
-                            : 'background.paper',
-                    }}
-                  >
-                    <Stack spacing={1.1}>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Box
-                          sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 1.5,
-                            display: 'grid',
-                            placeItems: 'center',
-                            bgcolor: 'rgba(11,93,92,0.1)',
-                            color: 'primary.main',
-                          }}
-                        >
-                          <Icon fontSize="small" />
-                        </Box>
-                        <StatusChip value={step.status} />
-                      </Stack>
-                      <Box>
-                        <Typography variant="subtitle2">{copy.title}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {copy.description}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2">{step.errorMessage ?? step.message ?? formatStepMetrics(step)}</Typography>
-                    </Stack>
-                  </Box>
-                )
-              })}
-            </Box>
+      <PipelineSteps steps={steps} progress={progress} error={stepsQuery.error?.message} />
 
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Step</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Started</TableCell>
-                  <TableCell>Finished</TableCell>
-                  <TableCell>Message</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {steps.map((step) => (
-                  <TableRow key={step.id}>
-                    <TableCell>{stepCopy(step.name).title}</TableCell>
-                    <TableCell>
-                      <StatusChip value={step.status} />
-                    </TableCell>
-                    <TableCell>{formatDateTime(step.startedAt)}</TableCell>
-                    <TableCell>{formatDateTime(step.finishedAt)}</TableCell>
-                    <TableCell>{step.errorMessage ?? step.message ?? formatStepMetrics(step)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      {run.edaResult && <EdaResultSection edaResult={run.edaResult} />}
+    </Stack>
+  )
+}
+
+function PipelineSteps({ steps, progress, error }: { steps: RunStep[]; progress: number; error?: string }) {
+  return (
+    <Paper sx={{ p: 2.5 }}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={2}
+        sx={{ alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between', mb: 2 }}
+      >
+        <Box>
+          <Typography variant="h6">Pipeline steps</Typography>
+          <Typography color="text.secondary">
+            Redis queues the run, the worker executes each stage, and the database records progress for monitoring.
+          </Typography>
+        </Box>
+        <Box sx={{ minWidth: { xs: '100%', md: 240 } }}>
+          <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.75 }}>
+            <Typography variant="body2" color="text.secondary">
+              Progress
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {progress}%
+            </Typography>
           </Stack>
-        )}
+          <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 999 }} />
+        </Box>
+      </Stack>
+      {error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : (
+        <Stack spacing={2}>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 1.5,
+              gridTemplateColumns: {
+                xs: 'repeat(1, minmax(0, 1fr))',
+                md: 'repeat(2, minmax(0, 1fr))',
+                xl: 'repeat(4, minmax(0, 1fr))',
+              },
+            }}
+          >
+            {steps.map((step) => {
+              const copy = stepCopy(step.name)
+              const Icon = copy.Icon
+              return (
+                <Box
+                  key={step.id}
+                  sx={{
+                    border: '1px solid',
+                    borderColor:
+                      step.status === 'failed'
+                        ? 'error.light'
+                        : step.status === 'running'
+                          ? 'info.light'
+                          : 'divider',
+                    borderRadius: 2,
+                    p: 1.75,
+                    minHeight: 150,
+                    bgcolor:
+                      step.status === 'failed'
+                        ? 'rgba(183,58,58,0.06)'
+                        : step.status === 'running'
+                          ? 'rgba(2,132,199,0.06)'
+                          : 'background.paper',
+                  }}
+                >
+                  <Stack spacing={1.1}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 1.5,
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: 'rgba(11,93,92,0.1)',
+                          color: 'primary.main',
+                        }}
+                      >
+                        <Icon fontSize="small" />
+                      </Box>
+                      <StatusChip value={step.status} />
+                    </Stack>
+                    <Box>
+                      <Typography variant="subtitle2">{copy.title}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {copy.description}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2">{step.errorMessage ?? step.message ?? formatStepMetrics(step)}</Typography>
+                  </Stack>
+                </Box>
+              )
+            })}
+          </Box>
+
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Step</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Started</TableCell>
+                <TableCell>Finished</TableCell>
+                <TableCell>Message</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {steps.map((step) => (
+                <TableRow key={step.id}>
+                  <TableCell>{stepCopy(step.name).title}</TableCell>
+                  <TableCell>
+                    <StatusChip value={step.status} />
+                  </TableCell>
+                  <TableCell>{formatDateTime(step.startedAt)}</TableCell>
+                  <TableCell>{formatDateTime(step.finishedAt)}</TableCell>
+                  <TableCell>{step.errorMessage ?? step.message ?? formatStepMetrics(step)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Stack>
+      )}
+    </Paper>
+  )
+}
+
+function EdaResultSection({ edaResult }: { edaResult: NonNullable<Awaited<ReturnType<typeof api.getRun>>['edaResult']> }) {
+  return (
+    <Stack spacing={2}>
+      <Paper sx={{ p: 2.5 }}>
+        <Typography variant="h6" gutterBottom>
+          Exploratory analysis
+        </Typography>
+        <Stack spacing={1}>
+          <Typography>
+            <strong>Kaggle dataset:</strong>{' '}
+            {edaResult.datasetUrl ? (
+              <Link href={edaResult.datasetUrl} target="_blank" rel="noreferrer">
+                {edaResult.datasetRef}
+              </Link>
+            ) : (
+              edaResult.datasetRef ?? 'Unknown dataset'
+            )}
+          </Typography>
+          {edaResult.category && (
+            <Typography>
+              <strong>Topic/category:</strong> {edaResult.category}
+            </Typography>
+          )}
+          <Typography>
+            <strong>Files analyzed:</strong> {edaResult.fileCount}
+          </Typography>
+        </Stack>
       </Paper>
 
-      {run.edaResult && (
-        <Stack spacing={2}>
-          <Paper sx={{ p: 2.5 }}>
-            <Typography variant="h6" gutterBottom>
-              Exploratory analysis
-            </Typography>
-            <Stack spacing={1}>
-              <Typography>
-                <strong>Kaggle dataset:</strong>{' '}
-                {run.edaResult.datasetUrl ? (
-                  <Link href={run.edaResult.datasetUrl} target="_blank" rel="noreferrer">
-                    {run.edaResult.datasetRef}
-                  </Link>
-                ) : (
-                  run.edaResult.datasetRef ?? 'Unknown dataset'
-                )}
-              </Typography>
-              {run.edaResult.category && (
-                <Typography>
-                  <strong>Topic/category:</strong> {run.edaResult.category}
-                </Typography>
-              )}
-              <Typography>
-                <strong>Files analyzed:</strong> {run.edaResult.fileCount}
-              </Typography>
-            </Stack>
-          </Paper>
+      {edaResult.files.map((file) => (
+        <Paper key={file.fileName} sx={{ p: 2.5 }}>
+          <Typography variant="h6" gutterBottom>
+            {file.fileName}
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 1.5,
+              gridTemplateColumns: { xs: 'repeat(1, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
+              mb: 2,
+            }}
+          >
+            <Paper sx={{ p: 2 }}>
+              <Typography color="text.secondary">Rows</Typography>
+              <Typography variant="h5">{formatNumber(file.rowCount)}</Typography>
+            </Paper>
+            <Paper sx={{ p: 2 }}>
+              <Typography color="text.secondary">Columns</Typography>
+              <Typography variant="h5">{formatNumber(file.columnCount)}</Typography>
+            </Paper>
+            <Paper sx={{ p: 2 }}>
+              <Typography color="text.secondary">Duplicate rows</Typography>
+              <Typography variant="h5">{formatNumber(file.duplicateRows)}</Typography>
+            </Paper>
+          </Box>
 
-          {run.edaResult.files.map((file) => (
-            <Paper key={file.fileName} sx={{ p: 2.5 }}>
-              <Typography variant="h6" gutterBottom>
-                {file.fileName}
-              </Typography>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gap: 1.5,
-                  gridTemplateColumns: { xs: 'repeat(1, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
-                  mb: 2,
-                }}
-              >
-                <Paper sx={{ p: 2 }}>
-                  <Typography color="text.secondary">Rows</Typography>
-                  <Typography variant="h5">{formatNumber(file.rowCount)}</Typography>
-                </Paper>
-                <Paper sx={{ p: 2 }}>
-                  <Typography color="text.secondary">Columns</Typography>
-                  <Typography variant="h5">{formatNumber(file.columnCount)}</Typography>
-                </Paper>
-                <Paper sx={{ p: 2 }}>
-                  <Typography color="text.secondary">Duplicate rows</Typography>
-                  <Typography variant="h5">{formatNumber(file.duplicateRows)}</Typography>
-                </Paper>
-              </Box>
+          <Typography variant="subtitle1" gutterBottom>
+            Columns
+          </Typography>
+          <Table size="small" sx={{ mb: 2 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell align="right">Missing</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {file.columns.slice(0, 12).map((column) => (
+                <TableRow key={column.name}>
+                  <TableCell>{column.name}</TableCell>
+                  <TableCell>{column.dtype}</TableCell>
+                  <TableCell align="right">{formatNumber(column.missing)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
+          {Object.keys(file.numericSummary).length > 0 && (
+            <>
               <Typography variant="subtitle1" gutterBottom>
-                Columns
+                Numeric summary
               </Typography>
-              <Table size="small" sx={{ mb: 2 }}>
+              <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell align="right">Missing</TableCell>
+                    <TableCell>Column</TableCell>
+                    <TableCell align="right">Mean</TableCell>
+                    <TableCell align="right">Min</TableCell>
+                    <TableCell align="right">Max</TableCell>
+                    <TableCell align="right">Std</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {file.columns.slice(0, 12).map((column) => (
-                    <TableRow key={column.name}>
-                      <TableCell>{column.name}</TableCell>
-                      <TableCell>{column.dtype}</TableCell>
-                      <TableCell align="right">{formatNumber(column.missing)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {Object.entries(file.numericSummary)
+                    .slice(0, 10)
+                    .map(([column, summary]) => (
+                      <TableRow key={column}>
+                        <TableCell>{column}</TableCell>
+                        <TableCell align="right">{summary.mean?.toFixed(2) ?? '-'}</TableCell>
+                        <TableCell align="right">{summary.min?.toFixed(2) ?? '-'}</TableCell>
+                        <TableCell align="right">{summary.max?.toFixed(2) ?? '-'}</TableCell>
+                        <TableCell align="right">{summary.std?.toFixed(2) ?? '-'}</TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
-
-              {Object.keys(file.numericSummary).length > 0 && (
-                <>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Numeric summary
-                  </Typography>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Column</TableCell>
-                        <TableCell align="right">Mean</TableCell>
-                        <TableCell align="right">Min</TableCell>
-                        <TableCell align="right">Max</TableCell>
-                        <TableCell align="right">Std</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {Object.entries(file.numericSummary)
-                        .slice(0, 10)
-                        .map(([column, summary]) => (
-                          <TableRow key={column}>
-                            <TableCell>{column}</TableCell>
-                            <TableCell align="right">{summary.mean?.toFixed(2) ?? '-'}</TableCell>
-                            <TableCell align="right">{summary.min?.toFixed(2) ?? '-'}</TableCell>
-                            <TableCell align="right">{summary.max?.toFixed(2) ?? '-'}</TableCell>
-                            <TableCell align="right">{summary.std?.toFixed(2) ?? '-'}</TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </>
-              )}
-            </Paper>
-          ))}
-        </Stack>
-      )}
+            </>
+          )}
+        </Paper>
+      ))}
     </Stack>
   )
 }

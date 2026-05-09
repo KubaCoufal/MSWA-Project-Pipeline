@@ -82,6 +82,7 @@ test('admin can edit pipeline metadata from the list page', async () => {
           description: 'Updated description',
           schedule: '0 4 * * *',
           active: true,
+          kaggleDataset: '',
         }),
       }),
     )

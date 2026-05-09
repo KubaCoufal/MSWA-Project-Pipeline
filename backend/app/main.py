@@ -10,6 +10,7 @@ from app.api.routes.alert_rules import router as alert_rules_router
 from app.api.routes.alerts import router as alerts_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.datasets import router as datasets_router
+from app.api.routes.kaggle import router as kaggle_router
 from app.api.routes.pipelines import router as pipelines_router
 from app.api.routes.runs import router as runs_router
 from app.core.config import settings
@@ -67,3 +68,4 @@ app.include_router(pipelines_router)
 app.include_router(runs_router)
 app.include_router(alert_rules_router)
 app.include_router(alerts_router)
+app.include_router(kaggle_router)

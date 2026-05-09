@@ -21,12 +21,38 @@ The project is intentionally self-contained so it can be evaluated locally with 
 | --- | --- |
 | Frontend | React, Vite, TypeScript, React Router, TanStack Query, MUI |
 | Backend API | FastAPI, Pydantic, SQLAlchemy |
+| API traffic | Nginx load balancer in front of horizontally scalable FastAPI containers |
 | Database | PostgreSQL in Docker, SQLite fallback for local tests |
 | Migrations | Alembic |
-| Background work | Redis Queue (RQ) with Redis |
+| Background work | Redis Queue (RQ) with Redis and horizontally scalable worker containers |
 | Authentication | Demo header auth by default, optional Keycloak |
 | Testing | Pytest, Vitest, Playwright, API smoke test |
 | Packaging | Docker, Docker Compose, Capacitor-ready frontend |
+
+The local Docker architecture separates request handling from pipeline execution:
+
+```text
+Browser / Frontend
+        |
+        v
+Nginx backend load balancer :8000
+        |
+        v
+FastAPI backend replicas
+        |
+        +---- PostgreSQL for persistent metadata and run history
+        |
+        +---- Redis/RQ queue for asynchronous pipeline jobs
+                    |
+                    v
+              Worker replicas
+
+Singleton services:
+  backend-migrate runs Alembic migrations and demo seeding once
+  scheduler creates due scheduled runs once per polling interval
+```
+
+The load balancer distributes HTTP API requests across backend replicas. Pipeline jobs are not executed by the load balancer or directly inside long-running HTTP requests. Instead, the backend creates a run record, enqueues a job in Redis, and one available worker claims the job. This makes API scaling and pipeline execution scaling independent.
 
 ## Quick Start
 
@@ -42,10 +68,18 @@ Start the full demo stack:
 docker compose up --build
 ```
 
+Start the same stack with multiple backend API replicas and multiple worker replicas:
+
+```bash
+docker compose up --build --scale backend=2 --scale worker=3
+```
+
+In the scaled setup, `backend-migrate` performs database migrations and demo seeding once before the API starts. The `scheduler` service is also a singleton, so scheduled runs are not duplicated by every backend replica.
+
 Default service URLs:
 
 - Frontend: `http://localhost:4173`
-- Backend API: `http://localhost:8000`
+- Backend API through the load balancer: `http://localhost:8000`
 - Backend OpenAPI docs: `http://localhost:8000/docs`
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`

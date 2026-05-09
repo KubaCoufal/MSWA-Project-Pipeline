@@ -4,8 +4,7 @@ from time import sleep
 
 from app.core.config import settings
 from app.db import session_scope
-from app.enums import RunStatus
-from app.enums import RunStepStatus
+from app.enums import RunStatus, RunStepStatus
 from app.models import PipelineVersion, Run, RunStep
 from app.services.kaggle_eda import run_kaggle_eda
 from app.services.run_steps import complete_step, fail_step, skip_pending_steps, start_step
@@ -70,6 +69,7 @@ def process_run(run_id: int) -> None:
             return
         complete_step(session, run_id, "store_result", message="Run result stored.", metrics={"recordsProcessed": records_processed})
         complete_step(session, run_id, "cleanup", message="Temporary files are cleaned up by the worker process.")
+        run.report = eda_result
         apply_status_transition(session, run, RunStatus.SUCCESS, records_processed=records_processed, eda_result=eda_result)
 
 

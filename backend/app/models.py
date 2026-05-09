@@ -46,6 +46,7 @@ class Pipeline(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     schedule: Mapped[str | None] = mapped_column(String(120), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    kaggle_dataset: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -87,6 +88,7 @@ class Run(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     eda_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     rq_job_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    report: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     pipeline: Mapped[Pipeline] = relationship(back_populates="runs")
