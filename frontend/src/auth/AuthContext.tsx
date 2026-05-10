@@ -56,7 +56,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return storedValue ? Number(storedValue) : DEMO_USERS[0].id
   })
   const [keycloakUser, setKeycloakUser] = useState<DemoUser>(FALLBACK_KEYCLOAK_USER)
-  const [isLoading, setIsLoading] = useState(AUTH_MODE === 'keycloak')
+  const [isLoading, setIsLoading] = useState(true)
   const [logoutHandler, setLogoutHandler] = useState<() => Promise<void>>(() => async () => undefined)
 
   useEffect(() => {
@@ -65,6 +65,44 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     window.localStorage.setItem(DEMO_USER_STORAGE_KEY, String(currentUserId))
+    if (import.meta.env.MODE === 'test') {
+      setStoredAuthToken('demo-test-token')
+      setIsLoading(false)
+      return
+    }
+
+    let active = true
+
+    async function issueDemoToken() {
+      setIsLoading(true)
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/auth/demo-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId }),
+        })
+        if (!response.ok) {
+          throw new Error(`Demo token request failed with status ${response.status}`)
+        }
+        const payload = (await response.json()) as { accessToken: string }
+        if (active) {
+          setStoredAuthToken(payload.accessToken)
+        }
+      } catch (error) {
+        console.error('Failed to issue demo auth token.', error)
+        clearStoredAuthToken()
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void issueDemoToken()
+
+    return () => {
+      active = false
+    }
   }, [currentUserId])
 
   useEffect(() => {
@@ -151,7 +189,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [currentUser, isLoading, logoutHandler],
   )
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{isLoading ? null : children}</AuthContext.Provider>
 }
 
 export function useAuth() {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Annotated
 
@@ -48,8 +49,37 @@ def resolve_keycloak_role(claims: dict) -> UserRole:
     )
 
 
-def get_demo_user(session: Session, demo_user_id: int | None) -> AuthenticatedUser:
-    user_id = demo_user_id or 1
+DEMO_JWT_ISSUER = "pipeline-monitor-demo"
+DEMO_JWT_ALGORITHM = "HS256"
+
+
+def create_demo_token(user_id: int) -> str:
+    now = datetime.now(timezone.utc)
+    return jwt.encode(
+        {
+            "sub": str(user_id),
+            "iss": DEMO_JWT_ISSUER,
+            "iat": now,
+            "exp": now + timedelta(minutes=max(settings.demo_jwt_ttl_minutes, 1)),
+        },
+        settings.demo_jwt_secret,
+        algorithm=DEMO_JWT_ALGORITHM,
+    )
+
+
+def get_demo_user(session: Session, authorization: str | None) -> AuthenticatedUser:
+    token = _extract_bearer_token(authorization)
+    try:
+        claims = jwt.decode(
+            token,
+            settings.demo_jwt_secret,
+            algorithms=[DEMO_JWT_ALGORITHM],
+            issuer=DEMO_JWT_ISSUER,
+        )
+        user_id = int(claims["sub"])
+    except (KeyError, TypeError, ValueError, jwt.PyJWTError) as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid demo token.") from exc
+
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unknown demo user.")
@@ -105,12 +135,11 @@ def get_keycloak_user(authorization: str | None) -> AuthenticatedUser:
 
 def get_current_user(
     session: Annotated[Session, Depends(get_session)],
-    demo_user_id: Annotated[int | None, Header(alias="X-Demo-User-Id")] = None,
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ) -> AuthenticatedUser:
     if settings.auth_mode == "keycloak":
         return get_keycloak_user(authorization)
-    return get_demo_user(session, demo_user_id)
+    return get_demo_user(session, authorization)
 
 
 def require_roles(*roles: UserRole) -> Callable[[AuthenticatedUser], AuthenticatedUser]:

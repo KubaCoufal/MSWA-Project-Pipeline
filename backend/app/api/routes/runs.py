@@ -28,6 +28,8 @@ def list_runs(
     status_filter: Annotated[RunStatus | None, Query(alias="status")] = None,
     started_from: datetime | None = None,
     started_to: datetime | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[RunRead]:
     runs = session.scalars(
         list_runs_query(
@@ -35,7 +37,7 @@ def list_runs(
             run_status=status_filter,
             started_from=started_from,
             started_to=started_to,
-        )
+        ).limit(limit).offset(offset)
     ).all()
     return [serialize_run(run) for run in runs]
 

@@ -16,6 +16,15 @@ def get_queue():
 
 
 def enqueue_run_processing(run_id: int) -> str:
+    from rq import Retry
+
     queue = get_queue()
-    job = queue.enqueue("app.workers.tasks.process_run", run_id)
+    retry_count = max(settings.rq_job_retry_count, 0)
+    job = queue.enqueue(
+        "app.workers.tasks.process_run",
+        run_id,
+        job_timeout=max(settings.rq_job_timeout_seconds, 1),
+        failure_ttl=86400,
+        retry=Retry(max=retry_count, interval=[10, 30, 60][:retry_count]) if retry_count else None,
+    )
     return job.id

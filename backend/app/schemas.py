@@ -25,6 +25,16 @@ class UserRead(AppSchema):
     role: UserRole
 
 
+class DemoTokenCreate(AppSchema):
+    user_id: int = Field(ge=1)
+
+
+class DemoTokenRead(AppSchema):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
 class DatasetCreate(AppSchema):
     name: str = Field(min_length=2, max_length=120)
     description: str | None = None
@@ -146,6 +156,15 @@ class PipelineRead(AppSchema):
     latest_run_started_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class PipelineVersionRead(AppSchema):
+    id: int
+    pipeline_id: int
+    version_number: int
+    config: dict[str, Any]
+    active: bool
+    created_at: datetime
 
 
 class RunRead(AppSchema):

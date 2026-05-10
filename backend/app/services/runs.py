@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import logging
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, select
@@ -13,6 +14,8 @@ from app.schemas import RunUpdate
 from app.services.alerts import evaluate_run_alerts
 from app.services.run_steps import complete_step, initialize_run_steps
 from app.workers.queue import enqueue_run_processing
+
+logger = logging.getLogger(__name__)
 
 
 VALID_TRANSITIONS: dict[RunStatus, set[RunStatus]] = {
@@ -47,6 +50,15 @@ def list_runs_query(
     return query
 
 
+def evaluate_run_alerts_after_commit(session: Session, run: Run) -> None:
+    try:
+        evaluate_run_alerts(session, run)
+        session.commit()
+    except Exception:
+        session.rollback()
+        logger.exception("Alert evaluation failed after run %s reached %s.", run.id, run.status.value)
+
+
 def _active_pipeline_version_number(pipeline: Pipeline) -> int:
     active_version = next((version for version in pipeline.versions if version.active), None)
     if active_version is None:
@@ -60,16 +72,26 @@ def runtime_seconds(run: Run) -> int | None:
     return int((_normalize_timestamp(run.finished_at) - _normalize_timestamp(run.started_at)).total_seconds())
 
 
-def create_run(session: Session, pipeline_id: int) -> Run:
+def create_run(session: Session, pipeline_id: int, pipeline_version_number: int | None = None) -> Run:
     pipeline = session.get(Pipeline, pipeline_id)
     if pipeline is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline was not found.")
     if not pipeline.active:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inactive pipelines cannot be started.")
 
+    version_number = pipeline_version_number or _active_pipeline_version_number(pipeline)
+    selected_version = session.scalar(
+        select(PipelineVersion).where(
+            PipelineVersion.pipeline_id == pipeline.id,
+            PipelineVersion.version_number == version_number,
+        )
+    )
+    if selected_version is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline version was not found.")
+
     run = Run(
         pipeline_id=pipeline.id,
-        pipeline_version_number=_active_pipeline_version_number(pipeline),
+        pipeline_version_number=version_number,
         status=RunStatus.PENDING,
         records_processed=0,
     )
@@ -77,15 +99,8 @@ def create_run(session: Session, pipeline_id: int) -> Run:
     session.commit()
     session.refresh(run)
 
-    active_version = session.scalar(
-        select(PipelineVersion).where(
-            PipelineVersion.pipeline_id == pipeline.id,
-            PipelineVersion.version_number == run.pipeline_version_number,
-        )
-    )
-    config = active_version.config if active_version else {}
-    source_type = config.get("sourceType", config.get("mode", "simulated"))
-    initialize_run_steps(session, run.id, source_type)
+    config = selected_version.config if selected_version else {}
+    initialize_run_steps(session, run.id, config)
 
     job_id = enqueue_run_processing(run.id)
     run.rq_job_id = job_id
@@ -130,9 +145,11 @@ def apply_status_transition(
         if eda_result is not None:
             run.eda_result = eda_result
 
-    evaluate_run_alerts(session, run)
     session.commit()
     session.refresh(run)
+    if next_status in {RunStatus.SUCCESS, RunStatus.FAILED}:
+        evaluate_run_alerts_after_commit(session, run)
+        session.refresh(run)
     return run
 
 

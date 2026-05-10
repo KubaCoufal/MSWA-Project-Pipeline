@@ -53,7 +53,7 @@ def create_alert(client, admin_headers, operator_headers, monkeypatch) -> int:
     )
     assert failed_response.status_code == 200
 
-    alerts_response = client.get(f"/alerts?pipeline_id={pipeline_id}")
+    alerts_response = client.get(f"/alerts?pipeline_id={pipeline_id}", headers=operator_headers)
     assert alerts_response.status_code == 200
     return alerts_response.json()[0]["id"]
 

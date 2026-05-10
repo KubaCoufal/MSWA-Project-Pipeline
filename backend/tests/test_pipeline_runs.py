@@ -91,6 +91,39 @@ def test_admin_can_update_pipeline_metadata(client, admin_headers) -> None:
     assert response.json()["active"] is False
 
 
+def test_pipeline_config_update_creates_version_and_can_run_old_version(client, admin_headers, operator_headers, monkeypatch) -> None:
+    monkeypatch.setattr("app.services.runs.enqueue_run_processing", lambda run_id: None)
+    dataset_id = create_dataset(client, admin_headers)
+    pipeline_id = create_pipeline(client, admin_headers, dataset_id)
+
+    update_response = client.patch(
+        f"/pipelines/{pipeline_id}",
+        headers=admin_headers,
+        json={"kaggleDataset": "owner/example-dataset"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["currentVersionNumber"] == 2
+
+    versions_response = client.get(f"/pipelines/{pipeline_id}/versions", headers=admin_headers)
+    assert versions_response.status_code == 200
+    versions = versions_response.json()
+    assert [version["versionNumber"] for version in versions] == [2, 1]
+    assert versions[0]["active"] is True
+    assert versions[0]["config"]["sourceType"] == "kaggle_specific"
+    assert versions[1]["config"]["sourceType"] == "simulated"
+
+    run_response = client.post(f"/pipelines/{pipeline_id}/versions/1/run", headers=operator_headers)
+    assert run_response.status_code == 201
+    assert run_response.json()["pipelineVersionNumber"] == 1
+
+    activate_response = client.post(f"/pipelines/{pipeline_id}/versions/1/activate", headers=admin_headers)
+    assert activate_response.status_code == 200
+    assert activate_response.json()["active"] is True
+
+    pipeline_response = client.get(f"/pipelines/{pipeline_id}", headers=admin_headers)
+    assert pipeline_response.json()["currentVersionNumber"] == 1
+
+
 def test_operator_cannot_update_pipeline_metadata(client, admin_headers, operator_headers) -> None:
     dataset_id = create_dataset(client, admin_headers)
     pipeline_id = create_pipeline(client, admin_headers, dataset_id)
@@ -157,7 +190,7 @@ def test_run_transition_rules_and_failed_alert(client, admin_headers, operator_h
     assert failed_transition.status_code == 200
     assert failed_transition.json()["status"] == "failed"
 
-    alerts_response = client.get(f"/alerts?pipeline_id={pipeline_id}")
+    alerts_response = client.get(f"/alerts?pipeline_id={pipeline_id}", headers=operator_headers)
     assert alerts_response.status_code == 200
     assert len(alerts_response.json()) == 1
 
@@ -200,11 +233,11 @@ def test_worker_processes_run_and_runtime_alert(client, admin_headers, operator_
 
     process_run(run_id)
 
-    fetched_run = client.get(f"/runs/{run_id}")
+    fetched_run = client.get(f"/runs/{run_id}", headers=operator_headers)
     assert fetched_run.status_code == 200
     assert fetched_run.json()["status"] == "success"
 
-    steps_response = client.get(f"/runs/{run_id}/steps")
+    steps_response = client.get(f"/runs/{run_id}/steps", headers=operator_headers)
     assert steps_response.status_code == 200
     steps = steps_response.json()
     assert [step["name"] for step in steps] == [
@@ -216,6 +249,6 @@ def test_worker_processes_run_and_runtime_alert(client, admin_headers, operator_
     ]
     assert all(step["status"] == "success" for step in steps)
 
-    alerts_response = client.get(f"/alerts?pipeline_id={pipeline_id}")
+    alerts_response = client.get(f"/alerts?pipeline_id={pipeline_id}", headers=operator_headers)
     assert alerts_response.status_code == 200
     assert len(alerts_response.json()) == 1

@@ -19,16 +19,17 @@ import { getStoredAuthToken } from '../auth/storage'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
-async function apiFetch<T>(path: string, init: RequestInit = {}, userId?: number): Promise<T> {
+async function apiFetch<T>(path: string, init: RequestInit = {}, _userId?: number): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
-  if (userId) {
-    headers.set('X-Demo-User-Id', String(userId))
-  }
   if (AUTH_MODE === 'keycloak') {
-    headers.delete('X-Demo-User-Id')
+    const token = getStoredAuthToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  } else {
     const token = getStoredAuthToken()
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)

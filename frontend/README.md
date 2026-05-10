@@ -11,7 +11,7 @@ This directory contains the React frontend for the Big Data Pipeline Monitor cou
 - MUI for UI components and layout
 - Vitest and Testing Library for unit/component tests
 - Playwright for browser end-to-end tests
-- Capacitor configuration for future mobile packaging
+- Experimental Capacitor configuration for future mobile packaging
 
 ## Environment Variables
 
@@ -77,11 +77,11 @@ npm run preview
 
 ### Demo Mode
 
-`VITE_AUTH_MODE=demo` is the default. The UI shows a user switcher for Admin, Operator, and Viewer. API requests include the selected user's `X-Demo-User-Id` header.
+`VITE_AUTH_MODE=demo` is the default. The UI shows a user switcher for Admin, Operator, and Viewer. When the selected user changes, the frontend requests a short-lived demo JWT from the backend and sends it as a bearer token.
 
 ### Keycloak Mode
 
-`VITE_AUTH_MODE=keycloak` enables Keycloak login through `keycloak-js`. In this mode, the frontend stores the bearer token and sends it to the backend through the `Authorization` header.
+`VITE_AUTH_MODE=keycloak` enables Keycloak login through `keycloak-js`. In this mode, the frontend keeps the bearer token in memory and sends it to the backend through the `Authorization` header.
 
 The easiest way to run Keycloak mode is from the repository root:
 
@@ -106,7 +106,7 @@ src/
 
 ## Mobile Packaging
 
-The frontend includes Capacitor configuration, but the generated native Android project is not committed by default.
+The frontend includes Capacitor configuration, but the generated native Android project is not committed by default. This is not advertised as a working mobile deployment: the default API URL points to `http://localhost:8000`, which only works from the host browser. For a native build, set `VITE_API_BASE_URL` to a reachable deployed backend URL before building and syncing.
 
 Build and sync the web application:
 

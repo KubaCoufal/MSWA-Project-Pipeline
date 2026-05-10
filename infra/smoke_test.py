@@ -8,12 +8,31 @@ import urllib.request
 
 
 API_BASE_URL = "http://localhost:8000"
-ADMIN_USER_ID = "1"
+ADMIN_USER_ID = 1
+ADMIN_TOKEN: str | None = None
+
+
+def get_admin_token() -> str:
+    global ADMIN_TOKEN
+    if ADMIN_TOKEN is not None:
+        return ADMIN_TOKEN
+
+    data = json.dumps({"userId": ADMIN_USER_ID}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{API_BASE_URL}/auth/demo-token",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    ADMIN_TOKEN = payload["accessToken"]
+    return ADMIN_TOKEN
 
 
 def request_json(method: str, path: str, payload: dict | None = None):
     data = None
-    headers = {"X-Demo-User-Id": ADMIN_USER_ID}
+    headers = {"Authorization": f"Bearer {get_admin_token()}"}
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -55,6 +74,7 @@ def main() -> None:
             "description": "Smoke test pipeline",
             "schedule": "0 2 * * *",
             "active": True,
+            "sourceType": "simulated",
         },
     )
     print(f"Created pipeline #{pipeline['id']}")

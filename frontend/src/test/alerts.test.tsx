@@ -66,18 +66,20 @@ test('operator can acknowledge an open alert', async () => {
 test('viewer does not see alert action controls', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockResolvedValue(
-      response({
-        id: 5,
-        ruleId: 1,
-        runId: 33,
-        pipelineId: 9,
-        message: 'Run failed',
-        severity: 'medium',
-        status: 'open',
-        createdAt: new Date().toISOString(),
-      }),
-    ),
+    vi
+      .fn()
+      .mockResolvedValue(
+        response({
+          id: 5,
+          ruleId: 1,
+          runId: 33,
+          pipelineId: 9,
+          message: 'Run failed',
+          severity: 'medium',
+          status: 'open',
+          createdAt: new Date().toISOString(),
+        }),
+      ),
   )
 
   renderWithProviders(

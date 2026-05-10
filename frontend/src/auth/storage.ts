@@ -1,13 +1,16 @@
 import { KEYCLOAK_TOKEN_STORAGE_KEY } from './config'
 
+let authToken: string | null = null
+
 export function getStoredAuthToken() {
-  return window.localStorage.getItem(KEYCLOAK_TOKEN_STORAGE_KEY)
+  return authToken
 }
 
 export function setStoredAuthToken(token: string) {
-  window.localStorage.setItem(KEYCLOAK_TOKEN_STORAGE_KEY, token)
+  authToken = token
 }
 
 export function clearStoredAuthToken() {
+  authToken = null
   window.localStorage.removeItem(KEYCLOAK_TOKEN_STORAGE_KEY)
 }

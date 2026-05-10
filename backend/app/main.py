@@ -8,12 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.alert_rules import router as alert_rules_router
 from app.api.routes.alerts import router as alerts_router
+from app.api.routes.auth import router as auth_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.datasets import router as datasets_router
 from app.api.routes.kaggle import router as kaggle_router
 from app.api.routes.pipelines import router as pipelines_router
 from app.api.routes.runs import router as runs_router
 from app.core.config import settings
+from app.core.observability import ObservabilityMiddleware, configure_logging, metrics_response
 from app.db import Base, SessionLocal, engine
 from app.services.demo_content import seed_demo_content
 from app.services.demo_users import seed_demo_users
@@ -46,7 +48,11 @@ async def lifespan(_: FastAPI):
             await scheduler_task
 
 
+configure_logging()
+
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+app.add_middleware(ObservabilityMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,7 +68,13 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    return metrics_response()
+
+
 app.include_router(dashboard_router)
+app.include_router(auth_router)
 app.include_router(datasets_router)
 app.include_router(pipelines_router)
 app.include_router(runs_router)

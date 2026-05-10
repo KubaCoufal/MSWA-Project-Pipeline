@@ -16,7 +16,7 @@ def test_admin_can_create_and_list_datasets(client, admin_headers) -> None:
     assert response.status_code == 201
     assert response.json()["schemaVersion"] == 3
 
-    list_response = client.get("/datasets")
+    list_response = client.get("/datasets", headers=admin_headers)
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
 

@@ -22,12 +22,12 @@ The project is intentionally self-contained so it can be evaluated locally with 
 | Frontend | React, Vite, TypeScript, React Router, TanStack Query, MUI |
 | Backend API | FastAPI, Pydantic, SQLAlchemy |
 | API traffic | Nginx load balancer in front of horizontally scalable FastAPI containers |
-| Database | PostgreSQL in Docker, SQLite fallback for local tests |
+| Database | PostgreSQL in Docker and backend tests |
 | Migrations | Alembic |
 | Background work | Redis Queue (RQ) with Redis and horizontally scalable worker containers |
-| Authentication | Demo header auth by default, optional Keycloak |
+| Authentication | Backend-issued demo JWTs by default, optional Keycloak |
 | Testing | Pytest, Vitest, Playwright, API smoke test |
-| Packaging | Docker, Docker Compose, Capacitor-ready frontend |
+| Packaging | Docker and Docker Compose; Capacitor config is experimental |
 
 The local Docker architecture separates request handling from pipeline execution:
 
@@ -74,7 +74,9 @@ Start the same stack with multiple backend API replicas and multiple worker repl
 docker compose up --build --scale backend=2 --scale worker=3
 ```
 
-In the scaled setup, `backend-migrate` performs database migrations and demo seeding once before the API starts. The `scheduler` service is also a singleton, so scheduled runs are not duplicated by every backend replica.
+In the scaled setup, `backend-migrate` performs database migrations and demo seeding once before the API starts. The `scheduler` service is also a singleton, and the scheduler code takes a PostgreSQL advisory lock before creating due runs so accidental duplicate scheduler instances skip the same tick.
+
+Nginx uses Docker's embedded DNS resolver with a short TTL for the `backend` service name, which keeps the demo load balancer usable when backend containers restart. This is still a Docker Compose demonstration, not a production service-discovery setup.
 
 Default service URLs:
 
@@ -98,13 +100,13 @@ Kaggle pipelines can analyze a specific Kaggle dataset URL/slug or request the l
 
 ## Demo Accounts
 
-In demo mode, the frontend allows switching between these users. API requests identify the selected user through the `X-Demo-User-Id` header.
+In demo mode, the frontend allows switching between these users. The backend issues a short-lived signed demo JWT from `/auth/demo-token`; API requests use the same `Authorization: Bearer ...` path as Keycloak mode.
 
 | User | Header value | Role | Permissions |
 | --- | --- | --- | --- |
-| Admin | `X-Demo-User-Id: 1` | `admin` | Full metadata management, run control, and alert handling |
-| Operator | `X-Demo-User-Id: 2` | `operator` | Start/update runs and handle alerts |
-| Viewer | `X-Demo-User-Id: 3` | `viewer` | Read-only access |
+| Admin | Demo JWT for user `1` | `admin` | Full metadata management, run control, and alert handling |
+| Operator | Demo JWT for user `2` | `operator` | Start/update runs and handle alerts |
+| Viewer | Demo JWT for user `3` | `viewer` | Read-only access |
 
 ## Suggested Demo Flow
 
@@ -200,7 +202,7 @@ The scheduler is intentionally simulated. It checks active pipelines with schedu
 
 ## Testing
 
-Backend and frontend checks:
+Backend and frontend checks. Backend tests use PostgreSQL, not SQLite. By default they target `postgresql+psycopg://pipeline:pipeline@localhost:5432/pipeline_monitor_test` and create the database if the local PostgreSQL user has permission. Override with `TEST_DATABASE_URL` when needed.
 
 ```bash
 cd backend
@@ -230,6 +232,24 @@ npm run test:e2e
 
 The Playwright flow creates a dataset, pipeline, and alert rule, starts a run, and acknowledges the resulting alert through the UI.
 
+## API Evolution
+
+The public routes intentionally do not use a `/v1` prefix. This project is submitted as a lockstep monorepo: backend, frontend, worker, scheduler, and tests are versioned and deployed together through the same Docker Compose/CI workflow. A production split-client deployment would introduce explicit API versioning before supporting independent frontend/backend releases.
+
+## Pipeline Versions
+
+Pipeline configuration is versioned. Metadata such as name, description, schedule, and active state lives on the pipeline record, while executable configuration lives on `PipelineVersion`.
+
+- `GET /pipelines/{pipeline_id}/versions` lists versions.
+- `POST /pipelines/{pipeline_id}/versions/{version_number}/activate` rolls back or activates a version.
+- `POST /pipelines/{pipeline_id}/versions/{version_number}/run` runs a selected version without changing the active version.
+
+Run steps are stored in version config through a `steps` array, with source-type defaults used when older seeded versions do not contain explicit steps.
+
+## Observability
+
+Every HTTP response includes an `X-Request-ID`; callers may provide one or let the backend generate it. Backend logs are structured JSON and include the request id when available. Prometheus-format metrics are exposed at `http://localhost:8000/metrics`.
+
 ## Continuous Integration
 
 GitHub Actions CI is defined in [.github/workflows/ci.yml](.github/workflows/ci.yml). It runs:
@@ -241,7 +261,9 @@ GitHub Actions CI is defined in [.github/workflows/ci.yml](.github/workflows/ci.
 
 ## Mobile Packaging
 
-The frontend is configured for future Capacitor packaging. Included files and scripts:
+The frontend includes only experimental Capacitor configuration. The Docker demo backend is reached through `http://localhost:8000`, which is valid for the host browser but not for a phone or emulator unless that device can reach a deployed backend URL. Treat Capacitor as a packaging starting point, not a claimed working mobile deployment.
+
+Included files and scripts:
 
 - [frontend/capacitor.config.ts](frontend/capacitor.config.ts)
 - [frontend/.env.example](frontend/.env.example)
@@ -262,6 +284,8 @@ To generate a local Android project for the first time:
 ```bash
 npx cap add android
 ```
+
+Before testing a native build, set `VITE_API_BASE_URL` to a reachable HTTPS backend URL and rebuild the frontend.
 
 ## Repository Layout
 

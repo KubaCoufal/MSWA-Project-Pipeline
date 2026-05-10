@@ -22,8 +22,23 @@ KAGGLE_STEPS = [
 ]
 
 
-def initialize_run_steps(session: Session, run_id: int, source_type: str) -> None:
-    step_names = SIMULATED_STEPS if source_type == "simulated" else KAGGLE_STEPS
+def default_steps_for_source(source_type: str) -> list[str]:
+    return list(SIMULATED_STEPS if source_type == "simulated" else KAGGLE_STEPS)
+
+
+def resolve_step_names(config: dict | None) -> list[str]:
+    config = config or {}
+    source_type = config.get("sourceType", config.get("mode", "simulated"))
+    configured_steps = config.get("steps")
+    if isinstance(configured_steps, list):
+        step_names = [str(step).strip() for step in configured_steps if str(step).strip()]
+        if step_names:
+            return step_names
+    return default_steps_for_source(source_type)
+
+
+def initialize_run_steps(session: Session, run_id: int, config: dict | None) -> None:
+    step_names = resolve_step_names(config)
     for index, name in enumerate(step_names, start=1):
         session.add(RunStep(run_id=run_id, step_order=index, name=name, status=RunStepStatus.PENDING))
     session.commit()

@@ -10,8 +10,14 @@ from app.core.security import get_current_user, require_roles
 from app.db import get_session
 from app.enums import UserRole
 from app.models import Pipeline
-from app.schemas import PipelineCreate, PipelineRead, PipelineUpdate, RunRead
-from app.services.pipelines import create_pipeline, serialize_pipeline, update_pipeline
+from app.schemas import PipelineCreate, PipelineRead, PipelineUpdate, PipelineVersionRead, RunRead
+from app.services.pipelines import (
+    activate_pipeline_version,
+    create_pipeline,
+    list_pipeline_versions,
+    serialize_pipeline,
+    update_pipeline,
+)
 from app.services.runs import create_run, runtime_seconds
 
 router = APIRouter(prefix="/pipelines", tags=["pipelines"], dependencies=[Depends(get_current_user)])
@@ -59,6 +65,28 @@ def update_pipeline_route(
     return serialize_pipeline(session, pipeline)
 
 
+@router.get("/{pipeline_id}/versions", response_model=list[PipelineVersionRead])
+def get_pipeline_versions(
+    pipeline_id: int,
+    session: Annotated[Session, Depends(get_session)],
+) -> list[PipelineVersionRead]:
+    return [PipelineVersionRead.model_validate(version) for version in list_pipeline_versions(session, pipeline_id)]
+
+
+@router.post(
+    "/{pipeline_id}/versions/{version_number}/activate",
+    response_model=PipelineVersionRead,
+    dependencies=[Depends(require_roles(UserRole.ADMIN))],
+)
+def activate_pipeline_version_route(
+    pipeline_id: int,
+    version_number: int,
+    session: Annotated[Session, Depends(get_session)],
+) -> PipelineVersionRead:
+    version = activate_pipeline_version(session, pipeline_id, version_number)
+    return PipelineVersionRead.model_validate(version)
+
+
 @router.post(
     "/{pipeline_id}/run",
     response_model=RunRead,
@@ -67,6 +95,26 @@ def update_pipeline_route(
 )
 def run_pipeline(pipeline_id: int, session: Annotated[Session, Depends(get_session)]) -> RunRead:
     run = create_run(session, pipeline_id)
+    return RunRead.model_validate(
+        {
+            **run.__dict__,
+            "runtime_seconds": runtime_seconds(run),
+        }
+    )
+
+
+@router.post(
+    "/{pipeline_id}/versions/{version_number}/run",
+    response_model=RunRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.OPERATOR))],
+)
+def run_pipeline_version(
+    pipeline_id: int,
+    version_number: int,
+    session: Annotated[Session, Depends(get_session)],
+) -> RunRead:
+    run = create_run(session, pipeline_id, pipeline_version_number=version_number)
     return RunRead.model_validate(
         {
             **run.__dict__,
